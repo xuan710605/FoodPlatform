@@ -1,4 +1,4 @@
-// FoodPlatform Neo4j 5.x demonstration graph.
+// FoodPlatform graph seed. Compatibility target: Neo4j 2026.06.0.
 // Run after constraints.cypher. All identities are stable business keys shared with MySQL.
 
 UNWIND [
@@ -49,7 +49,7 @@ UNWIND [
  {code:'ING059',name:'胡萝卜',type:'VEGETABLE'},{code:'ING060',name:'西兰花',type:'VEGETABLE'},
  {code:'ING061',name:'燕麦片',type:'ALIAS'},{code:'ING062',name:'落花生',type:'ALIAS'},
  {code:'ING063',name:'生牛乳',type:'ALIAS'},{code:'ING064',name:'小麦粉',type:'ALIAS'}
-] AS row MERGE (n:Ingredient {ingredient_code:row.code}) SET n.name=row.name,n.ingredient_type=row.type,n.audit_status='APPROVED',n.updated_at=datetime();
+] AS row MERGE (n:Ingredient {ingredient_code:row.code}) SET n.name=row.name,n.standard_name=row.name,n.ingredient_type=row.type,n.audit_status='APPROVED',n.updated_at=datetime();
 
 UNWIND [
  {code:'ADD001',name:'磷脂',function:'乳化剂'},{code:'ADD002',name:'大豆磷脂',function:'乳化剂'},
@@ -58,7 +58,7 @@ UNWIND [
  {code:'ADD007',name:'维生素D',function:'营养强化剂'},{code:'ADD008',name:'磷酸氢二钾',function:'稳定剂'},
  {code:'ADD009',name:'碳酸氢钠',function:'膨松剂'},{code:'ADD010',name:'谷氨酸钠',function:'增味剂'},
  {code:'ADD011',name:'呈味核苷酸二钠',function:'增味剂'}
-] AS row MERGE (n:Additive {additive_code:row.code}) SET n.name=row.name,n.function=row.function,n.audit_status='APPROVED',n.updated_at=datetime();
+] AS row MERGE (n:Additive {additive_code:row.code}) SET n.name=row.name,n.standard_name=row.name,n.function=row.function,n.audit_status='APPROVED',n.updated_at=datetime();
 
 UNWIND [
  {code:'RISK001',name:'花生及其制品',level:'HIGH'},{code:'RISK002',name:'乳及乳制品',level:'HIGH'},
@@ -190,7 +190,7 @@ UNWIND [
  {a:'ING002',b:'ING021'},{a:'ING005',b:'ING006'},{a:'ING016',b:'ING017'},
  {a:'ING007',b:'ING019'},{a:'ING038',b:'ING026'},{a:'ING010',b:'ING020'}
 ] AS row MATCH (a:Ingredient {ingredient_code:row.a}),(b:Ingredient {ingredient_code:row.b})
-MERGE (a)-[r:INGREDIENT_CAN_SUBSTITUTE]->(b) SET r.note='配方替代建议，需结合具体工艺确认',r.audit_status='APPROVED',r.source_code='SRC003';
+MERGE (a)-[r:INGREDIENT_CAN_SUBSTITUTE]->(b) SET r.context='配方替代建议，需结合具体工艺确认',r.audit_status='APPROVED',r.source_code='SRC003';
 
 MATCH (source:DataSource {source_code:'SRC001'}) MATCH (p:FoodProduct)
 MERGE (p)-[r:ENTITY_FROM_SOURCE]->(source) SET r.observed_at=datetime(),r.audit_status='APPROVED';

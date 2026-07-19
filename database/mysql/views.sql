@@ -1,4 +1,4 @@
--- Common read models for MySQL 8.0.
+-- Common read models. Tested with MySQL 9.7.1.
 SET NAMES utf8mb4;
 USE food_platform;
 

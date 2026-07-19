@@ -73,3 +73,9 @@ pnpm preview
 - 成分缺失、未知或冲突：信息不足
 - 硬约束优先于价格、销量和推荐度
 - AI 只用于受控解析与解释，不修改商品事实
+
+## 数据库脚本与验证
+
+数据库文件位于 `database/`，正确本地路径为 `D:\CodexProjects\FoodPlatform`。当前脚本以 MySQL 9.7.1 和 Neo4j 2026.06.0 为兼容目标；MySQL 初始化及过程最小业务测试已在 9.7.1 完成，Neo4j 脚本需在具备目标库凭据的环境中运行 `database/neo4j/verify.cypher` 后，方可认定实际导入通过。完整说明见 [database/README.md](database/README.md)。
+
+关系语义严格区分明确含有、可能含有和信息不足；“未查到关系”不代表绝对安全。跨库只使用 `product_code`、`ingredient_code`、`brand_code` 等业务编码，不依赖 Neo4j 内部节点 ID。商品原始配料文本与结构化成分分别保存。

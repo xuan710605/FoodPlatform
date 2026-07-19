@@ -1,77 +1,95 @@
-// Neo4j 5.x query examples. Set parameters in Neo4j Browser before running, e.g.:
-// :param product_code => 'FP0001';
-// :param ingredient_code => 'ING002';
+// FoodPlatform query examples. Compatibility target: Neo4j 2026.06.0.
+// Supply parameters with cypher-shell (-P) or the application. Never use internal node IDs as business identifiers.
 
-// 1. Query every explicit ingredient of a product.
+// 1. Explicit ingredients. raw_fragment remains in MySQL and is not fabricated in the graph.
 MATCH (p:FoodProduct {product_code: $product_code})
 MATCH (p)-[r:FOOD_PRODUCT_CONTAINS_INGREDIENT]->(i:Ingredient)
-RETURN p.product_code, p.name, i.ingredient_code, i.standard_name,
-       r.raw_fragment, r.confidence, r.source_code, r.audit_status
-ORDER BY r.sequence, i.standard_name;
+RETURN p.product_code, p.name, i.ingredient_code,
+       coalesce(i.standard_name, i.name) AS ingredient_name,
+       r.confidence, r.source_code, r.audit_status
+ORDER BY i.ingredient_code;
 
-// 2. Determine whether a product explicitly contains a specified ingredient,
-// including aliases and derived ingredients. Returns deterministic evidence.
+// 2. Approved explicit-containment evidence. A false result is not an absolute safety guarantee.
 MATCH (p:FoodProduct {product_code: $product_code})
 MATCH (target:Ingredient {ingredient_code: $ingredient_code})
 OPTIONAL MATCH path=(p)-[:FOOD_PRODUCT_CONTAINS_INGREDIENT]->(actual:Ingredient)
   -[:INGREDIENT_ALIAS_OF|INGREDIENT_DERIVED_FROM*0..3]->(target)
+WHERE ALL(rel IN relationships(path) WHERE rel.audit_status = 'APPROVED')
 RETURN p.product_code, target.ingredient_code,
-       CASE WHEN path IS NULL THEN false ELSE true END AS explicitly_contains,
-       [n IN nodes(path) | coalesce(n.product_code, n.ingredient_code)] AS evidence_path;
+       path IS NOT NULL AS explicitly_contains,
+       CASE WHEN path IS NULL THEN 'NO_RECORDED_APPROVED_PATH' ELSE 'APPROVED_EVIDENCE_PATH' END AS evidence_status,
+       CASE WHEN path IS NULL THEN [] ELSE [n IN nodes(path) | coalesce(n.product_code, n.ingredient_code)] END AS evidence_path;
 
-// 3. Query aliases of an ingredient.
+// 3. Approved aliases and their evidence source.
 MATCH (alias:Ingredient)-[r:INGREDIENT_ALIAS_OF]->(standard:Ingredient {ingredient_code: $ingredient_code})
-RETURN alias.ingredient_code, alias.standard_name, r.source_code, r.audit_status;
+RETURN alias.ingredient_code, coalesce(alias.standard_name, alias.name) AS alias_name,
+       standard.ingredient_code, coalesce(standard.standard_name, standard.name) AS standard_name,
+       r.source_code, r.audit_status
+ORDER BY alias.ingredient_code;
 
-// 4. Query direct and transitive derivatives of an ingredient.
+// 4. Approved direct/transitive derivatives and evidence per edge.
 MATCH path=(derived:Ingredient)-[:INGREDIENT_DERIVED_FROM*1..4]->(base:Ingredient {ingredient_code: $ingredient_code})
-RETURN derived.ingredient_code, derived.standard_name, length(path) AS depth,
-       [rel IN relationships(path) | rel.source_code] AS sources
-ORDER BY depth, derived.standard_name;
+WHERE ALL(rel IN relationships(path) WHERE rel.audit_status = 'APPROVED')
+RETURN derived.ingredient_code, coalesce(derived.standard_name, derived.name) AS derived_name,
+       length(path) AS depth,
+       [rel IN relationships(path) | {source_code: rel.source_code, audit_status: rel.audit_status}] AS evidence
+ORDER BY depth, derived.ingredient_code;
 
-// 5. Query risk tags associated with an ingredient.
+// 5. Risk tags use the canonical risk_level property.
 MATCH (i:Ingredient {ingredient_code: $ingredient_code})-[r:INGREDIENT_HAS_RISK]->(risk:RiskTag)
-RETURN i.standard_name, risk.risk_tag_code, risk.name, risk.severity,
-       r.source_code, r.audit_status;
+RETURN i.ingredient_code, coalesce(i.standard_name, i.name) AS ingredient_name,
+       risk.risk_tag_code, risk.name, risk.risk_level,
+       r.source_code, r.audit_status
+ORDER BY risk.risk_tag_code;
 
-// 6. Query products that do not explicitly contain or possibly contain an ingredient
-// or any audited aliases/derivatives. This is not an absolute safety guarantee.
+// 6. No recorded explicit/may-contain relation is information absence, not an absolute safety assertion.
+MATCH (target:Ingredient {ingredient_code: $ingredient_code})
 MATCH (p:FoodProduct)
 WHERE p.audit_status = 'APPROVED'
   AND NOT EXISTS {
     MATCH (p)-[:FOOD_PRODUCT_CONTAINS_INGREDIENT|FOOD_PRODUCT_MAY_CONTAIN]->(actual:Ingredient)
-    MATCH (target:Ingredient {ingredient_code: $ingredient_code})
     WHERE actual = target
-       OR EXISTS { MATCH (actual)-[:INGREDIENT_ALIAS_OF|INGREDIENT_DERIVED_FROM*1..3]->(target) }
+       OR EXISTS {
+         MATCH path=(actual)-[:INGREDIENT_ALIAS_OF|INGREDIENT_DERIVED_FROM*1..3]->(target)
+         WHERE ALL(rel IN relationships(path) WHERE rel.audit_status = 'APPROVED')
+       }
   }
-RETURN p.product_code, p.name, p.match_status
+RETURN p.product_code, p.name, 'NO_RECORDED_RELATION' AS knowledge_result,
+       false AS absolute_safety_guarantee
 ORDER BY p.product_code;
 
-// 7. Query products carrying a may-contain warning for an ingredient.
+// 7. A may-contain warning is distinct from confirmed containment.
 MATCH (p:FoodProduct)-[r:FOOD_PRODUCT_MAY_CONTAIN]->(i:Ingredient {ingredient_code: $ingredient_code})
-RETURN p.product_code, p.name, r.raw_fragment, r.source_code, r.audit_status;
+RETURN p.product_code, p.name, i.ingredient_code,
+       coalesce(i.standard_name, i.name) AS ingredient_name,
+       r.confidence, r.source_code, r.audit_status
+ORDER BY p.product_code;
 
-// 8. Query substitute ingredients in either direction.
+// 8. Substitute ingredients use the canonical context property.
 MATCH (i:Ingredient {ingredient_code: $ingredient_code})-[r:INGREDIENT_CAN_SUBSTITUTE]-(substitute:Ingredient)
-RETURN substitute.ingredient_code, substitute.standard_name,
-       r.context, r.source_code, r.audit_status;
+RETURN substitute.ingredient_code, coalesce(substitute.standard_name, substitute.name) AS substitute_name,
+       r.context, r.source_code, r.audit_status
+ORDER BY substitute.ingredient_code;
 
-// 9. Query complete paths from a product to risk tags.
+// 9. Explainable paths from a product to risk tags.
 MATCH path=(p:FoodProduct {product_code: $product_code})
-  -[:FOOD_PRODUCT_CONTAINS_INGREDIENT|FOOD_PRODUCT_MAY_CONTAIN|FOOD_PRODUCT_HAS_ADDITIVE]->(entity)
-  -[:INGREDIENT_HAS_RISK*1..2]->(risk:RiskTag)
-RETURN path, [n IN nodes(path) | coalesce(n.name, n.standard_name)] AS readable_path;
+  -[:FOOD_PRODUCT_CONTAINS_INGREDIENT|FOOD_PRODUCT_MAY_CONTAIN]->(ingredient:Ingredient)
+  -[:INGREDIENT_HAS_RISK]->(risk:RiskTag)
+RETURN path,
+       [n IN nodes(path) | coalesce(n.product_code, n.ingredient_code, n.risk_tag_code)] AS business_path,
+       [n IN nodes(path) | coalesce(n.standard_name, n.name)] AS readable_path;
 
-// 10. Query all one-hop graph relations of a product.
+// 10. All one-hop product relations.
 MATCH (p:FoodProduct {product_code: $product_code})-[r]-(neighbor)
 RETURN type(r) AS relation_type, properties(r) AS relation_properties,
        labels(neighbor) AS neighbor_labels, properties(neighbor) AS neighbor_properties
 ORDER BY relation_type;
 
-// 11. Query products affected by a changed ingredient relation.
+// 11. Products affected by an approved changed ingredient relation.
 MATCH (changed:Ingredient {ingredient_code: $ingredient_code})
 MATCH path=(p:FoodProduct)-[:FOOD_PRODUCT_CONTAINS_INGREDIENT|FOOD_PRODUCT_MAY_CONTAIN]->(used:Ingredient)
   -[:INGREDIENT_ALIAS_OF|INGREDIENT_DERIVED_FROM*0..4]->(changed)
+WHERE ALL(rel IN relationships(path) WHERE rel.audit_status = 'APPROVED')
 RETURN DISTINCT p.product_code, p.name, p.audit_status,
        [n IN nodes(path) | coalesce(n.product_code, n.ingredient_code)] AS impact_path
 ORDER BY p.product_code;

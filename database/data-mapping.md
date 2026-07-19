@@ -35,3 +35,9 @@
 - 风险：审核/缓存 JSON 中的代码 ↔ `RiskTag.risk_tag_code`
 
 `matchStatus` 的业务规则为：硬排除成分命中 `CONTAINS` 时不匹配；命中 `MAY_CONTAIN` 时存在风险；事实缺失、冲突或低置信度时信息不足；其余条件满足才是完全匹配。
+
+## 图谱属性契约与判定边界
+
+`Ingredient` 与 `Additive` 同时保存 `name` 和 `standard_name`，当前二者取相同标准名称；展示和查询优先使用 `coalesce(standard_name, name)`。`RiskTag` 的风险等级字段统一为 `risk_level`，`INGREDIENT_CAN_SUBSTITUTE` 的说明字段统一为 `context`。关系证据使用 `source_code`、`audit_status` 和置信度，不伪造 MySQL 原始标签中的 `raw_fragment`。
+
+明确配料只映射为 `FOOD_PRODUCT_CONTAINS_INGREDIENT`，潜在交叉接触只映射为 `FOOD_PRODUCT_MAY_CONTAIN`。两者均未记录时属于信息不足，而非绝对安全。所有查询和同步使用 `product_code`、`ingredient_code`、`additive_code`、`brand_code`、`category_code`、`risk_tag_code`，禁止使用 Neo4j 内部节点 ID。

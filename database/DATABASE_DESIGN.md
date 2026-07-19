@@ -2,7 +2,7 @@
 
 ## 1. 数据库架构
 
-平台采用 MySQL 8.0 + Neo4j 5.x 的双数据库架构。MySQL 数据库名为 `food_platform`，负责账户、交易、商品事实、审核与审计；Neo4j 负责食品、配料、添加剂、风险、营养及来源之间的可解释关系。当前目录只提供可独立导入的初始化文件，不依赖前端、后端或外部服务。
+平台采用 MySQL 9.7.1 + Neo4j 2026.06.0 的双数据库架构。MySQL 数据库名为 `food_platform`，负责账户、交易、商品事实、审核与审计；Neo4j 负责食品、配料、添加剂、风险、营养及来源之间的可解释关系。当前目录只提供可独立导入的初始化文件，不依赖前端、后端或外部服务。
 
 ## 2. MySQL 与 Neo4j 的职责边界
 
@@ -86,8 +86,16 @@ MySQL 建议每日全量 `mysqldump --single-transaction`，配合 binlog 做时
 
 ## 15. MySQL Workbench 导入
 
-连接 MySQL 8.0 后依次打开并执行 `mysql/schema.sql`、`mysql/drop.sql`、再次执行 `mysql/schema.sql`、`mysql/seed.sql`、`mysql/views.sql`、`mysql/procedures.sql`。使用支持 UTF-8 的连接并确保账户具有创建数据库、表、视图和过程权限。也可直接运行 `init-database.ps1`。
+连接目标 MySQL 后依次打开并执行 `mysql/schema.sql`、`mysql/drop.sql`、再次执行 `mysql/schema.sql`、`mysql/seed.sql`、`mysql/views.sql`、`mysql/procedures.sql`。使用支持 UTF-8 的连接并确保账户具有创建数据库、表、视图和过程权限。也可直接运行 `init-database.ps1`。
 
 ## 16. Neo4j Browser 导入
 
-连接目标 Neo4j 5.x 数据库，在 Browser 中依次粘贴执行 `constraints.cypher`、`clear.cypher`、`seed.cypher` 的语句。Browser 对超长多语句脚本可能需要逐条运行；命令行推荐使用 `cypher-shell -f`。`clear.cypher` 只删除本项目八类节点，不删除数据库、用户或系统数据。
+连接目标 Neo4j 数据库，在 Browser 中依次粘贴执行 `constraints.cypher`、`clear.cypher`、`seed.cypher` 的语句。Browser 对超长多语句脚本可能需要逐条运行；命令行推荐使用 `cypher-shell -f`。`clear.cypher` 只删除本项目八类节点，不删除数据库、用户或系统数据。
+
+## 17. 兼容与验证状态
+
+正确项目路径是 `D:\CodexProjects\FoodPlatform`。当前实际 MySQL 测试环境为 9.7.1：全部初始化文件、36 张基础表、6 个视图、5 个过程、20 件商品及过程的成功/失败最小用例均已执行。Neo4j 兼容目标为 2026.06.0，配置校验已完成；由于本机运行中服务缺少有效认证凭据，图谱清理、导入和 `verify.cypher` 尚未实际执行。
+
+Neo4j 初始化顺序是 `constraints.cypher` → `clear.cypher` → `seed.cypher` → `verify.cypher`。`verify.cypher` 不使用 Browser `:param`，可由 `cypher-shell --database neo4j -f database/neo4j/verify.cypher` 完整执行，并验证八类节点、总节点、业务编码唯一性、缺失编码和关键解释路径。MySQL 初始化顺序及对象数量验证见 `database/README.md`。
+
+执行初始化会清除目标数据库中的本项目演示数据，操作前必须确认目标数据库并完成必要备份。跨库同步和接口不得依赖 Neo4j 内部 ID；只允许使用稳定业务编码。明确含有、可能含有与信息不足必须分别处理，缺少关系不能解释为绝对安全。原始配料文本与标准化配料结果继续分开存储和审计。

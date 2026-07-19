@@ -1,4 +1,4 @@
-// Neo4j 5.x constraints and indexes. Run against the target application database.
+// Compatibility target: Neo4j 2026.06.0. Run verify.cypher after importing the graph.
 CREATE CONSTRAINT food_product_code_unique IF NOT EXISTS
 FOR (n:FoodProduct) REQUIRE n.product_code IS UNIQUE;
 
@@ -29,13 +29,13 @@ FOR (n:FoodProduct) ON (n.name);
 CREATE INDEX food_product_audit_status_index IF NOT EXISTS
 FOR (n:FoodProduct) ON (n.audit_status);
 
-CREATE INDEX ingredient_name_index IF NOT EXISTS
+CREATE INDEX ingredient_standard_name_index IF NOT EXISTS
 FOR (n:Ingredient) ON (n.standard_name);
 
 CREATE INDEX ingredient_audit_status_index IF NOT EXISTS
 FOR (n:Ingredient) ON (n.audit_status);
 
-CREATE INDEX additive_name_index IF NOT EXISTS
+CREATE INDEX additive_standard_name_index IF NOT EXISTS
 FOR (n:Additive) ON (n.standard_name);
 
 CREATE INDEX brand_name_index IF NOT EXISTS

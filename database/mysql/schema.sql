@@ -1,4 +1,4 @@
--- FoodPlatform MySQL 8.0 schema
+-- FoodPlatform schema. Tested with MySQL 9.7.1.
 -- Database: food_platform
 SET NAMES utf8mb4;
 SET time_zone = '+08:00';
@@ -334,6 +334,7 @@ CREATE TABLE IF NOT EXISTS inventory_change_log (
   updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (id),
   KEY idx_inventory_log_inventory_time (inventory_id, created_at),
+  UNIQUE KEY uk_inventory_log_business_inventory (inventory_id, business_type, business_code),
   KEY idx_inventory_log_business (business_type, business_code),
   CONSTRAINT fk_inventory_log_inventory FOREIGN KEY (inventory_id) REFERENCES product_inventory(id) ON DELETE RESTRICT,
   CONSTRAINT fk_inventory_log_operator FOREIGN KEY (operator_user_id) REFERENCES sys_user(id) ON DELETE SET NULL
