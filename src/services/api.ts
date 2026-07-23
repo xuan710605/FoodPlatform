@@ -28,9 +28,12 @@ export async function searchFilter(analysis:FilterAnalyzeData):Promise<FilterSea
 export async function apiRequest<T>(path:string,init?:RequestInit):Promise<T>{
   const token=getAccessToken()
   const url=`${API_BASE_URL}${path}`
-  const headers:Record<string,string>={Accept:'application/json',...(init?.headers as Record<string,string>||{})}
-  if(token)headers.Authorization=`Bearer ${token}`
+  const headers=new Headers(init?.headers)
+  headers.set('Accept','application/json')
+  headers.set('Content-Type','application/json')
+  if(token)headers.set('Authorization',`Bearer ${token}`)
   console.log('[api] request',{url,hasToken:Boolean(token)})
+  console.log('[api] headers',headers)
   const response=await fetch(url,{...init,headers})
   console.log('[api] response',{url,status:response.status})
   const payload=await response.json() as ApiEnvelope<T>&{error?:{message?:string}}
