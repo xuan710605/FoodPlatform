@@ -36,6 +36,7 @@ export async function apiRequest<T>(path:string,init?:RequestInit):Promise<T>{
   console.log('[api] headers',headers)
   const response=await fetch(url,{...init,headers})
   console.log('[api] response',{url,status:response.status})
+  if(response.status===401){localStorage.removeItem(ACCESS_TOKEN_KEY);if(window.location.pathname!=='/login')window.location.assign('/login')}
   const payload=await response.json() as ApiEnvelope<T>&{error?:{message?:string}}
   if(!response.ok||!payload.success)throw new Error(payload.error?.message||payload.message||`API request failed: ${response.status}`)
   return payload.data
