@@ -97,3 +97,12 @@ pnpm preview
 ### 用户体系与基础业务接口
 
 后端开发分支现已提供消费者注册、JWT登录、当前用户、角色依赖、用户偏好、分类和品牌接口。JWT密钥与数据库密码只配置在未提交的 `backend/.env`，MySQL最小权限账号说明见 [backend/docs/mysql-user.md](backend/docs/mysql-user.md)。前端仍使用Mock数据，本阶段没有替换前端API。
+## 前端 API 联调
+
+前端默认请求 `http://127.0.0.1:8000`，也可以仅在本地环境文件中设置：
+
+```env
+VITE_API_BASE_URL=http://127.0.0.1:8000
+```
+
+商品列表、商品详情和知识图谱采用 API 优先、Mock 降级策略；`src/mock/data.ts` 继续保留。真实 `.env` 不得提交。

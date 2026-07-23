@@ -14,12 +14,15 @@ from app.core.logging import configure_logging, request_id_context
 from app.db.mysql import create_mysql_engine, create_session_factory
 from app.db.neo4j import create_neo4j_driver
 from app.repositories.catalog_repository import CatalogRepository
+from app.repositories.filter_repository import FilterGraphRepository
 from app.repositories.graph_repository import GraphRepository
 from app.repositories.preference_repository import PreferenceRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.product_repository import ProductRepository
 from app.services.auth_service import AuthService
 from app.services.catalog_service import CatalogService
+from app.services.filter_rules import ControlledFilterAnalyzer
+from app.services.filter_service import FilterService
 from app.services.graph_service import GraphService
 from app.services.preference_service import PreferenceService
 from app.services.product_service import ProductService
@@ -47,6 +50,11 @@ async def lifespan(app: FastAPI):
     app.state.graph_service = GraphService(
         product_repository,
         GraphRepository(driver, settings.neo4j_database),
+    )
+    app.state.filter_service = FilterService(
+        product_repository,
+        FilterGraphRepository(driver, settings.neo4j_database),
+        ControlledFilterAnalyzer(),
     )
     try:
         yield

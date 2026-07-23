@@ -11,6 +11,7 @@ export interface Nutrition {
 
 export interface Product {
   id: number
+  productCode?: string
   name: string
   brand: string
   category: string

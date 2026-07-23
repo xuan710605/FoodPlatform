@@ -109,3 +109,10 @@ Database role `PLATFORM_ADMIN` is normalized to API role `ADMIN`; `CONSUMER`, `M
 The existing database has `user_ingredient_preference`, not a generic `user_preference` table. The API stores the requested preference category in `preference_source`: allergen and dietary restriction records use `EXCLUDE`, while nutrition targets use `PREFER`. Older `USER_INPUT` rows are mapped safely when read. No schema migration is performed.
 
 See [docs/mysql-user.md](docs/mysql-user.md) for the manual least-privilege `food_platform_app` grant. The backend never creates that account automatically and never receives `DROP`, `ALTER`, or `CREATE` privileges.
+
+## 确定性食品筛选基础接口
+
+- `POST /api/v1/filter/analyze`：使用受控规则解析排除成分、营养目标、价格上限与分类，不调用Qwen。
+- `POST /api/v1/filter/search`：组合MySQL商品事实与Neo4j成分别名、衍生及风险证据，返回 `MATCH`、`RISK`、`NOT_MATCH` 或 `UNKNOWN`。
+
+`CONTAINS` 命中排除条件时为 `NOT_MATCH`，`MAY_CONTAIN` 命中时为 `RISK`；没有证据不能解释为安全。

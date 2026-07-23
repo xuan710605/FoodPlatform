@@ -1,0 +1,63 @@
+from decimal import Decimal
+from typing import Literal
+
+from pydantic import BaseModel, Field, model_validator
+
+
+class NutritionTarget(BaseModel):
+    nutrient_code: str | None = Field(default=None, max_length=40)
+    nutrient_name: str = Field(min_length=1, max_length=120)
+    operator: Literal["LTE", "GTE"]
+    value: Decimal = Field(ge=0)
+    unit: str = Field(min_length=1, max_length=24)
+    basis: Literal["PER_100G", "PER_100ML"] = "PER_100G"
+
+
+class FilterAnalyzeRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=500)
+
+
+class FilterConditions(BaseModel):
+    exclude_ingredients: list[str] = Field(default_factory=list, max_length=20)
+    nutrition_targets: list[NutritionTarget] = Field(default_factory=list, max_length=10)
+    max_price: Decimal | None = Field(default=None, ge=0)
+    category_code: str | None = Field(default=None, max_length=32)
+
+
+class FilterAnalyzeResult(FilterConditions):
+    normalized_text: str
+    parser: Literal["CONTROLLED_RULES"] = "CONTROLLED_RULES"
+    unparsed_fragments: list[str] = Field(default_factory=list)
+
+
+class FilterSearchRequest(FilterConditions):
+    text: str | None = Field(default=None, min_length=1, max_length=500)
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=20, ge=1, le=100)
+
+    @model_validator(mode="after")
+    def require_condition(self):
+        if not self.text and not (self.exclude_ingredients or self.nutrition_targets or self.max_price is not None or self.category_code):
+            raise ValueError("At least one filter condition or text is required")
+        return self
+
+
+class FilterProductItem(BaseModel):
+    product_code: str
+    name: str
+    brand: str
+    category: str
+    main_image_url: str | None
+    sale_price: Decimal | None
+    match_status: Literal["MATCH", "RISK", "NOT_MATCH", "UNKNOWN"]
+    reasons: list[str]
+    contains_hits: list[str]
+    may_contain_hits: list[str]
+
+
+class FilterSearchResult(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    conditions: FilterConditions
+    items: list[FilterProductItem]

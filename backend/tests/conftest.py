@@ -10,6 +10,7 @@ os.environ.setdefault("NEO4J_PASSWORD", "unit_test_only")
 os.environ.setdefault("JWT_SECRET", "unit-test-jwt-secret-at-least-32-characters")
 
 from app.main import app  # noqa: E402
+from app.services.filter_rules import ControlledFilterAnalyzer  # noqa: E402
 
 
 class Result:
@@ -150,6 +151,27 @@ class FakeCatalogService:
     def brands(self):
         return [{"brand_code": "BR001", "name": "谷物日记", "logo_url": None, "description": None}]
 
+class FakeFilterService:
+    def analyze(self, text):
+        return ControlledFilterAnalyzer().analyze(text).model_dump()
+
+    def search(self, payload):
+        return {
+            "total": 1, "page": payload.page, "page_size": payload.page_size,
+            "conditions": {
+                "exclude_ingredients": payload.exclude_ingredients,
+                "nutrition_targets": payload.nutrition_targets,
+                "max_price": payload.max_price,
+                "category_code": payload.category_code,
+            },
+            "items": [{
+                "product_code": "FP0001", "name": "原味燕麦片", "brand": "谷物日记",
+                "category": "早餐麦片", "main_image_url": None, "sale_price": Decimal("32.90"),
+                "match_status": "MATCH", "reasons": ["满足当前条件"],
+                "contains_hits": [], "may_contain_hits": [],
+            }],
+        }
+
 class FakeGraphService:
     def get_product_graph(self, _code):
         return GRAPH
@@ -165,4 +187,5 @@ def client():
         app.state.auth_service = FakeAuthService()
         app.state.preference_service = FakePreferenceService()
         app.state.catalog_service = FakeCatalogService()
+        app.state.filter_service = FakeFilterService()
         yield test_client
