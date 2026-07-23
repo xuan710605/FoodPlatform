@@ -200,12 +200,23 @@ class FakeAddressService:
     def set_default(self,user_id,address_code): self.last_user_id=user_id; return self.item | {"address_code":address_code,"is_default":True}
 
 class FakeOrderService:
-    item={"id":31,"order_no":"ORDTEST31","status":"PENDING_PAYMENT","payment_status":"UNPAID","goods_amount":Decimal("32.90"),"shipping_amount":Decimal("6"),"payable_amount":Decimal("38.90"),"paid_amount":Decimal("0"),"placed_at":datetime(2026,7,23,tzinfo=timezone.utc),"paid_at":None,"items":[{"id":51,"product_code":"FP0001","product_name":"原味燕麦片","spec_code":"SPEC001","spec_name":"500g","image_url":None,"unit_price":Decimal("32.90"),"quantity":1,"subtotal":Decimal("32.90"),"ingredient_version":1}]}
+    item={"id":31,"order_no":"ORDTEST31","status":"PENDING_PAYMENT","payment_status":"UNPAID","goods_amount":Decimal("32.90"),"shipping_amount":Decimal("6"),"payable_amount":Decimal("38.90"),"paid_amount":Decimal("0"),"placed_at":datetime(2026,7,23,tzinfo=timezone.utc),"paid_at":None,"allowed_actions":["PAY","CANCEL"],"items":[{"id":51,"product_code":"FP0001","product_name":"原味燕麦片","spec_code":"SPEC001","spec_name":"500g","image_url":None,"unit_price":Decimal("32.90"),"quantity":1,"subtotal":Decimal("32.90"),"ingredient_version":1}]}
     def create(self,_user_id,_payload): return self.item
-    def list(self,_user_id,page,page_size): return {"total":1,"page":page,"page_size":page_size,"items":[self.item]}
+    def list(self,_user_id,page,page_size,status=None): return {"total":1,"page":page,"page_size":page_size,"items":[self.item]}
     def get(self,_user_id,_order_id): return self.item
     def pay(self,_user_id,_order_id,_channel): return self.item|{"status":"PAID","payment_status":"PAID","paid_amount":Decimal("38.90"),"paid_at":datetime(2026,7,23,tzinfo=timezone.utc)}
-    def cancel(self,_user_id,_order_id): return self.item|{"status":"CANCELLED"}
+    def cancel(self,_user_id,_order_id): return self.item|{"status":"CANCELLED","allowed_actions":[]}
+    def confirm_receipt(self,_user_id,_order_id): return self.item|{"status":"COMPLETED","allowed_actions":[]}
+
+class FakeFavoriteService:
+    def __init__(self): self.by_user={}
+    def list(self,user_id): return list(self.by_user.get(user_id,{}).values())
+    def add(self,user_id,product_code):
+        item={"id":1,"product_id":1,"product_code":product_code,"name":"?????","brand":"????","category":"????","main_image_url":None,"sale_price":Decimal("32.90"),"sale_status":"ON_SALE","audit_status":"APPROVED","created_at":datetime(2026,7,23,tzinfo=timezone.utc)}
+        self.by_user.setdefault(user_id,{})[product_code]=item;return item
+    def delete(self,user_id,product_code):
+        from app.core.exceptions import AppError
+        if not self.by_user.get(user_id,{}).pop(product_code,None): raise AppError("FAVORITE_NOT_FOUND","Favorite not found",404)
 
 class FakeGraphService:
     def get_product_graph(self, _code):
@@ -226,4 +237,5 @@ def client():
         app.state.cart_service = FakeCartService()
         app.state.address_service = FakeAddressService()
         app.state.order_service = FakeOrderService()
+        app.state.favorite_service = FakeFavoriteService()
         yield test_client

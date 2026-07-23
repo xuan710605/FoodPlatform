@@ -43,9 +43,9 @@ class OrderService:
             raise AppError("MYSQL_UNAVAILABLE", "Order database is unavailable", 503) from exc
         return self._validate(result)
 
-    def list(self, user_id, page, page_size):
+    def list(self, user_id, page, page_size, status=None):
         try:
-            return self.repository.list_orders(user_id, page, page_size)
+            return self.repository.list_orders(user_id, page, page_size, status)
         except SQLAlchemyError as exc:
             raise AppError("MYSQL_UNAVAILABLE", "Order database is unavailable", 503) from exc
 
@@ -72,6 +72,12 @@ class OrderService:
             raise AppError("MYSQL_UNAVAILABLE", "Order database is unavailable", 503) from exc
         return self._validate(result)
 
+    def confirm_receipt(self, user_id, order_id):
+        try:
+            result = self.repository.confirm_receipt(user_id, order_id)
+        except SQLAlchemyError as exc:
+            raise AppError("MYSQL_UNAVAILABLE", "Order database is unavailable", 503) from exc
+        return self._validate(result)
     @staticmethod
     def _validate(result):
         if result is None:

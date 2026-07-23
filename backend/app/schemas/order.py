@@ -48,6 +48,7 @@ class OrderSummary(BaseModel):
     cancel_reason: str | None = None
     buyer_remark: str | None = None
     items: list[OrderItem]
+    allowed_actions: list[Literal["PAY", "CANCEL", "CONFIRM_RECEIPT"]] = []
 
 
 class OrderPage(BaseModel):

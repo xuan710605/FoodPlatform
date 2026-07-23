@@ -17,6 +17,7 @@ from app.repositories.address_repository import AddressRepository
 from app.repositories.catalog_repository import CatalogRepository
 from app.repositories.commerce_repository import CommerceRepository
 from app.repositories.filter_repository import FilterGraphRepository
+from app.repositories.favorite_repository import FavoriteRepository
 from app.repositories.graph_repository import GraphRepository
 from app.repositories.preference_repository import PreferenceRepository
 from app.repositories.user_repository import UserRepository
@@ -28,6 +29,7 @@ from app.services.order_service import OrderService
 from app.services.catalog_service import CatalogService
 from app.services.filter_rules import ControlledFilterAnalyzer
 from app.services.filter_service import FilterService
+from app.services.favorite_service import FavoriteService
 from app.services.graph_service import GraphService
 from app.services.preference_service import PreferenceService
 from app.services.product_service import ProductService
@@ -57,6 +59,7 @@ async def lifespan(app: FastAPI):
     commerce_repository = CommerceRepository(session_factory)
     app.state.cart_service = CartService(commerce_repository)
     app.state.order_service = OrderService(commerce_repository, address_repository)
+    app.state.favorite_service = FavoriteService(FavoriteRepository(session_factory))
     app.state.graph_service = GraphService(
         product_repository,
         GraphRepository(driver, settings.neo4j_database),

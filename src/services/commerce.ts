@@ -4,7 +4,7 @@ export type ApiCartItem={id:number;product_code:string;product_name:string;spec_
 export type ApiCart={cart_code:string;items:ApiCartItem[];item_count:number;total_quantity:number;total_amount:string}
 export type ApiAddress={address_code:string;receiver_name:string;receiver_phone:string;province:string;city:string;district:string;detail_address:string;postal_code:string|null;is_default:boolean;created_at:string;updated_at:string}
 export type AddressWrite=Omit<ApiAddress,'address_code'|'created_at'|'updated_at'>
-export type ApiOrder={id:number;order_no:string;status:'PENDING_PAYMENT'|'PAID'|'SHIPPING'|'CANCELLED'|'COMPLETED';payment_status:string;receiver_snapshot:Record<string,unknown>|null;goods_amount:string;shipping_amount:string;payable_amount:string;paid_amount:string;placed_at:string;paid_at:string|null;shipped_at:string|null;completed_at:string|null;cancelled_at:string|null;cancel_reason:string|null;buyer_remark:string|null;items:Array<{id:number;product_code:string;product_name:string;spec_code:string;spec_name:string;image_url:string|null;unit_price:string;quantity:number;subtotal:string}>}
+export type ApiOrder={id:number;order_no:string;status:'PENDING_PAYMENT'|'PAID'|'SHIPPING'|'CANCELLED'|'COMPLETED';payment_status:string;receiver_snapshot:Record<string,unknown>|null;goods_amount:string;shipping_amount:string;payable_amount:string;paid_amount:string;placed_at:string;paid_at:string|null;shipped_at:string|null;completed_at:string|null;cancelled_at:string|null;cancel_reason:string|null;buyer_remark:string|null;allowed_actions:Array<'PAY'|'CANCEL'|'CONFIRM_RECEIPT'>;items:Array<{id:number;product_code:string;product_name:string;spec_code:string;spec_name:string;image_url:string|null;unit_price:string;quantity:number;subtotal:string}>}
 
 const api=apiRequest
 
@@ -25,4 +25,7 @@ export const setDefaultAddress=(code:string)=>api<ApiAddress>(`/api/v1/addresses
 export const createOrder=(cartItemIds:number[],addressCode:string,buyerRemark:string)=>api<ApiOrder>('/api/v1/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cart_item_ids:cartItemIds,address_code:addressCode,buyer_remark:buyerRemark||null})})
 export const getOrder=(id:number)=>api<ApiOrder>(`/api/v1/orders/${id}`)
 export const payOrder=(id:number,channel='MOCK_BALANCE')=>api<ApiOrder>(`/api/v1/orders/${id}/pay`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({channel})})
-export const listOrders=()=>api<{total:number;page:number;page_size:number;items:ApiOrder[]}>('/api/v1/orders')
+export const listOrders=(status?:ApiOrder['status'])=>api<{total:number;page:number;page_size:number;items:ApiOrder[]}>(status?'/api/v1/orders?status='+status:'/api/v1/orders')
+
+export const cancelOrder=(id:number)=>api<ApiOrder>(`/api/v1/orders/${id}/cancel`,{method:'POST'})
+export const confirmOrderReceipt=(id:number)=>api<ApiOrder>(`/api/v1/orders/${id}/confirm-receipt`,{method:'POST'})

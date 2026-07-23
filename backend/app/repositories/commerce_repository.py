@@ -15,7 +15,8 @@ ORDER_STATUS_TO_API = {
     "PENDING_SHIPMENT": "PAID",
     "SHIPPED": "SHIPPING",
 }
-
+API_STATUS_TO_DB = {"PAID":"PENDING_SHIPMENT","SHIPPING":"SHIPPED"}
+ALLOWED_ACTIONS = {"PENDING_PAYMENT":["PAY","CANCEL"],"SHIPPED":["CONFIRM_RECEIPT"]}
 
 class CommerceRepository:
     def __init__(self, session_factory: sessionmaker[Session]): self._factory=session_factory
@@ -89,10 +90,12 @@ class CommerceRepository:
             session.execute(text("DELETE FROM cart_item WHERE id IN ("+",".join(str(int(r["cart_item_id"])) for r in rows)+")"))
         return self.get_order(user_id,order_id)
 
-    def list_orders(self,user_id:int,page:int,page_size:int)->dict[str,Any]:
+    def list_orders(self,user_id:int,page:int,page_size:int,status:str|None=None)->dict[str,Any]:
         with self._factory() as session:
-            total=session.execute(text("SELECT COUNT(*) FROM order_info WHERE user_id=:u"),{"u":user_id}).scalar_one()
-            ids=session.execute(text("SELECT id FROM order_info WHERE user_id=:u ORDER BY placed_at DESC LIMIT :limit OFFSET :offset"),{"u":user_id,"limit":page_size,"offset":(page-1)*page_size}).scalars().all()
+            params={"u":user_id};status_clause=""
+            if status:params["status"]=API_STATUS_TO_DB.get(status,status);status_clause=" AND order_status=:status"
+            total=session.execute(text("SELECT COUNT(*) FROM order_info WHERE user_id=:u"+status_clause),params).scalar_one()
+            ids=session.execute(text("SELECT id FROM order_info WHERE user_id=:u"+status_clause+" ORDER BY placed_at DESC LIMIT :limit OFFSET :offset"),{**params,"limit":page_size,"offset":(page-1)*page_size}).scalars().all()
         return {"total":total,"page":page,"page_size":page_size,"items":[self.get_order(user_id,x) for x in ids]}
 
     def get_order(self,user_id:int,order_id:int)->dict[str,Any]|None:
@@ -100,7 +103,7 @@ class CommerceRepository:
             order=session.execute(text("SELECT id,order_no,order_status status,payment_status,receiver_snapshot,goods_amount,shipping_amount,payable_amount,paid_amount,buyer_remark,placed_at,paid_at,shipped_at,completed_at,cancelled_at,cancel_reason FROM order_info WHERE id=:id AND user_id=:u"),{"id":order_id,"u":user_id}).mappings().first()
             if not order:return None
             items=session.execute(text("SELECT id,product_code_snapshot product_code,product_name_snapshot product_name,spec_code_snapshot spec_code,spec_name_snapshot spec_name,image_url_snapshot image_url,unit_price,quantity,subtotal_amount subtotal,ingredient_version_snapshot ingredient_version FROM order_item WHERE order_id=:id ORDER BY id"),{"id":order_id}).mappings().all()
-            result=dict(order); result["status"]=ORDER_STATUS_TO_API.get(result["status"],result["status"]); snapshot=result.get("receiver_snapshot"); result["receiver_snapshot"]=json.loads(snapshot) if isinstance(snapshot,str) else snapshot; result["items"]=[dict(x) for x in items]; return result
+            result=dict(order); db_status=result["status"]; result["status"]=ORDER_STATUS_TO_API.get(db_status,db_status); result["allowed_actions"]=ALLOWED_ACTIONS.get(db_status,[]); snapshot=result.get("receiver_snapshot"); result["receiver_snapshot"]=json.loads(snapshot) if isinstance(snapshot,str) else snapshot; result["items"]=[dict(x) for x in items]; return result
 
     def pay_order(self,user_id:int,order_id:int,channel:str)->dict[str,Any]|None:
         with self._factory.begin() as session:
@@ -125,4 +128,12 @@ class CommerceRepository:
                 session.execute(text("UPDATE product_inventory SET available_qty=:after,inventory_status=CASE WHEN :after<=warning_threshold THEN 'LOW' ELSE 'NORMAL' END,version_no=version_no+1 WHERE id=:id"),{"after":after,"id":r["inventory_id"]})
                 session.execute(text("INSERT INTO inventory_change_log(inventory_id,business_type,business_code,quantity_delta,before_qty,after_qty,operator_user_id,reason) VALUES(:id,'ORDER_RELEASE',:code,:q,:before,:after,:u,'order cancelled')"),{"id":r["inventory_id"],"code":order["order_no"],"q":r["quantity"],"before":r["available_qty"],"after":after,"u":user_id})
             session.execute(text("UPDATE order_info SET order_status='CANCELLED',cancelled_at=CURRENT_TIMESTAMP(3),cancel_reason='Cancelled by consumer' WHERE id=:id"),{"id":order_id})
+        return self.get_order(user_id,order_id)
+
+    def confirm_receipt(self,user_id:int,order_id:int)->dict[str,Any]|None:
+        with self._factory.begin() as session:
+            row=session.execute(text("SELECT id,order_status FROM order_info WHERE id=:id AND user_id=:u FOR UPDATE"),{"id":order_id,"u":user_id}).mappings().first()
+            if not row:return None
+            if row["order_status"]!="SHIPPED":return {"error":"INVALID_ORDER_STATUS"}
+            session.execute(text("UPDATE order_info SET order_status='COMPLETED',completed_at=CURRENT_TIMESTAMP(3) WHERE id=:id"),{"id":order_id})
         return self.get_order(user_id,order_id)
