@@ -1,7 +1,7 @@
 from collections.abc import Mapping
 from typing import Any
 
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 from sqlalchemy.orm import Session, sessionmaker
 
 
@@ -45,10 +45,40 @@ class ProductRepository:
         predicate=" AND ".join(where);sort_column=SORT_COLUMNS[filters["sort_by"]];sort_order="DESC" if filters["sort_order"]=="desc" else "ASC"
         params.update(limit=filters["page_size"],offset=(filters["page"]-1)*filters["page_size"])
         base="""FROM product p JOIN brand b ON b.id=p.brand_id JOIN category c ON c.id=p.category_id JOIN merchant m ON m.id=p.merchant_id LEFT JOIN product_spec s ON s.product_id=p.id AND s.is_default=1 AND s.status='ACTIVE' LEFT JOIN product_inventory inv ON inv.spec_id=s.id AND inv.warehouse_code='DEFAULT'"""
-        query=text(f"""SELECT p.id,p.product_code,p.product_name name,p.subtitle,b.brand_name brand,b.brand_code,c.category_name category,c.category_code,m.merchant_name merchant,p.merchant_id,(SELECT pi.image_url FROM product_image pi WHERE pi.product_id=p.id AND pi.image_type='MAIN' AND pi.status='ACTIVE' ORDER BY pi.sort_order,pi.id LIMIT 1) main_image_url,{sale_price} sale_price,(SELECT pp.amount FROM product_price pp WHERE pp.spec_id=s.id AND pp.price_type='LIST' AND pp.status='ACTIVE' AND pp.valid_from<=CURRENT_TIMESTAMP(3) AND (pp.valid_to IS NULL OR pp.valid_to>CURRENT_TIMESTAMP(3)) ORDER BY pp.valid_from DESC,pp.id DESC LIMIT 1) market_price,CASE WHEN inv.id IS NULL THEN NULL ELSE GREATEST(inv.available_qty-inv.locked_qty,0) END stock_quantity,CASE WHEN inv.id IS NULL THEN NULL WHEN inv.available_qty-inv.locked_qty>0 THEN 1 ELSE 0 END sellable,p.review_status audit_status,p.sale_status,(SELECT MAX(psn.version_no) FROM product_ingredient_snapshot psn WHERE psn.product_id=p.id AND psn.effective_to IS NULL) ingredient_version,p.created_at,p.updated_at {base} WHERE {predicate} ORDER BY {sort_column} {sort_order},p.id ASC LIMIT :limit OFFSET :offset""")
+        query=text(f"""SELECT p.id,p.product_code,p.product_name name,p.subtitle,b.brand_name brand,b.brand_code,c.category_name category,c.category_code,m.merchant_name merchant,p.merchant_id,p.match_status,p.match_reason,p.evidence_text,p.info_source,(SELECT AVG(pr.rating) FROM product_review pr WHERE pr.product_id=p.id AND pr.status='PUBLISHED') average_rating,(SELECT COUNT(*) FROM product_review pr WHERE pr.product_id=p.id AND pr.status='PUBLISHED') review_count,(SELECT COALESCE(SUM(oi.quantity),0) FROM order_item oi JOIN order_info o ON o.id=oi.order_id WHERE oi.product_id=p.id AND o.order_status NOT IN ('CANCELLED','PENDING_PAYMENT')) sales_count,(SELECT pi.image_url FROM product_image pi WHERE pi.product_id=p.id AND pi.image_type='MAIN' AND pi.status='ACTIVE' ORDER BY pi.sort_order,pi.id LIMIT 1) main_image_url,{sale_price} sale_price,(SELECT pp.amount FROM product_price pp WHERE pp.spec_id=s.id AND pp.price_type='LIST' AND pp.status='ACTIVE' AND pp.valid_from<=CURRENT_TIMESTAMP(3) AND (pp.valid_to IS NULL OR pp.valid_to>CURRENT_TIMESTAMP(3)) ORDER BY pp.valid_from DESC,pp.id DESC LIMIT 1) market_price,CASE WHEN inv.id IS NULL THEN NULL ELSE GREATEST(inv.available_qty-inv.locked_qty,0) END stock_quantity,CASE WHEN inv.id IS NULL THEN NULL WHEN inv.available_qty-inv.locked_qty>0 THEN 1 ELSE 0 END sellable,p.review_status audit_status,p.sale_status,(SELECT MAX(psn.version_no) FROM product_ingredient_snapshot psn WHERE psn.product_id=p.id AND psn.effective_to IS NULL) ingredient_version,p.created_at,p.updated_at {base} WHERE {predicate} ORDER BY {sort_column} {sort_order},p.id ASC LIMIT :limit OFFSET :offset""")
         with self._factory() as session:
-            total=session.execute(text(f"SELECT COUNT(DISTINCT p.id) {base} WHERE {predicate}"),params).scalar_one();rows=session.execute(query,params).mappings().all();return int(total),[dict(row) for row in rows]
+            total = session.execute(text(f"SELECT COUNT(DISTINCT p.id) {base} WHERE {predicate}"), params).scalar_one()
+            rows = session.execute(query, params).mappings().all()
+            items = [dict(row) for row in rows]
+            self._attach_ingredient_summaries(session, items)
+            return int(total), items
 
+    @staticmethod
+    def _attach_ingredient_summaries(session: Session, items: list[dict[str, Any]]) -> None:
+        for item in items:
+            item.update(contains=[], may_contain=[], unknown=[])
+        if not items:
+            return
+        statement = text("""
+            SELECT pis.product_id,pis.entity_code,pis.normalized_name AS name,pis.entity_type,
+              pis.relation_type,pis.confidence,pis.source_code,pis.audit_status
+            FROM product_ingredient_snapshot pis
+            WHERE pis.product_id IN :product_ids AND pis.effective_to IS NULL
+              AND pis.version_no=(SELECT MAX(v.version_no) FROM product_ingredient_snapshot v
+                                  WHERE v.product_id=pis.product_id AND v.effective_to IS NULL)
+              AND pis.audit_status='APPROVED'
+              AND pis.relation_type IN ('CONTAINS','MAY_CONTAIN','UNKNOWN')
+            ORDER BY pis.product_id,pis.relation_type,pis.entity_code
+        """).bindparams(bindparam("product_ids", expanding=True))
+        grouped = {item["id"]: item for item in items}
+        relation_keys = {"CONTAINS": "contains", "MAY_CONTAIN": "may_contain", "UNKNOWN": "unknown"}
+        for row in session.execute(statement, {"product_ids": list(grouped)}).mappings():
+            product = grouped.get(row["product_id"])
+            if product is None:
+                continue
+            summary = dict(row)
+            summary.pop("product_id")
+            product[relation_keys[row["relation_type"]]].append(summary)
     def category_stats(self) -> list[dict[str, Any]]:
         with self._factory() as session:
             rows=session.execute(text("""SELECT c.category_code,c.category_name,COUNT(p.id) product_count FROM category c LEFT JOIN product p ON p.category_id=c.id AND p.is_deleted=0 AND p.review_status='APPROVED' AND p.sale_status='ON_SALE' WHERE c.status='ACTIVE' GROUP BY c.id,c.category_code,c.category_name,c.sort_order ORDER BY c.sort_order,c.id""")).mappings().all()
@@ -64,7 +94,7 @@ class ProductRepository:
                   (SELECT COALESCE(SUM(oi.quantity),0)
                    FROM order_item oi JOIN order_info o ON o.id=oi.order_id
                    WHERE oi.product_id=p.id
-                     AND o.order_status NOT IN ('CANCELLED','PENDING_PAYMENT')) AS sales_quantity,
+                     AND o.order_status NOT IN ('CANCELLED','PENDING_PAYMENT')) AS sales_count,
                   (SELECT AVG(pr.rating) FROM product_review pr
                    WHERE pr.product_id=p.id AND pr.status='PUBLISHED') AS average_rating,
                   (SELECT COUNT(*) FROM product_review pr

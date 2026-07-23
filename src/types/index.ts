@@ -37,6 +37,27 @@ export interface Product {
   updatedAt: string
 }
 
+export interface ProductCardData {
+  id: number
+  productCode?: string
+  name: string
+  brand: string
+  category: string
+  price: number | null
+  originalPrice?: number
+  image: string
+  rating: number | null
+  reviewCount?: number
+  sales: number | null
+  ingredients: string[]
+  additives?: string[]
+  mayContain?: string[]
+  unknown?: string[]
+  status: MatchStatus
+  reason: string | null
+  evidence?: string | null
+  source?: string | null
+}
 export interface Order {
   id: string
   date: string

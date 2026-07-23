@@ -3,6 +3,14 @@ def test_product_list_pagination(client):
     assert response.status_code == 200
     assert response.json()["data"]["page"] == 2
     assert response.json()["data"]["page_size"] == 10
+    item = response.json()["data"]["items"][0]
+    assert item["average_rating"] == "4.50"
+    assert item["review_count"] == 2
+    assert item["sales_count"] == 12
+    assert item["match_status"] == "FULL_MATCH"
+    assert item["contains"][0]["relation_type"] == "CONTAINS"
+    assert item["may_contain"] == []
+    assert item["unknown"] == []
 
 
 def test_page_size_limit(client):
@@ -29,7 +37,7 @@ def test_product_detail_structure_and_decimal(client):
     assert data["raw_ingredient_text"] == "燕麦"
     assert data["contains"][0]["relation_type"] == "CONTAINS"
     assert data["unknown"][0]["relation_type"] == "UNKNOWN"
-    assert data["sales_quantity"] == 12
+    assert data["sales_count"] == 12
     assert data["average_rating"] == "4.50"
     assert data["review_count"] == 2
     assert data["match_status"] == "FULL_MATCH"

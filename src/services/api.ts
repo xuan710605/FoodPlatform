@@ -18,7 +18,7 @@ export interface ApiProductDetail {
   specs:Array<{spec_code:string;spec_name:string;unit_name:string;net_content_value:string|null;net_content_unit:string|null;is_default:boolean;sale_price:string|null;market_price:string|null;currency:string|null;stock_quantity:number|null;sellable:boolean|null}>
   images:Array<{image_type:string;image_url:string;alt_text:string|null;sort_order:number}>
   nutrition:ApiProductNutrition[]; contains:ApiProductIngredient[]; may_contain:ApiProductIngredient[]; unknown:ApiProductIngredient[]
-  sales_quantity:number; average_rating:string|null; review_count:number
+  sales_count:number; average_rating:string|null; review_count:number
   match_status:string; match_reason:string|null; evidence_text:string|null; info_source:string|null
   audit_status:string; sale_status:string; created_at:string; updated_at:string
 }
@@ -55,7 +55,7 @@ export async function apiRequest<T>(path:string,init?:RequestInit):Promise<T>{
 }
 const request=apiRequest
 
-export function productCodeOf(product:Product):string{return product.productCode||`FP${String(product.id).padStart(4,'0')}`}
+export function productCodeOf(product:{id:number;productCode?:string}):string{return product.productCode||`FP${String(product.id).padStart(4,'0')}`}
 export function resolveProductCode(routeValue?:string):string{if(routeValue?.match(/^FP\d{4,}$/i))return routeValue.toUpperCase();const id=Number(routeValue);return `FP${String(Number.isFinite(id)&&id>0?id:1).padStart(4,'0')}`}
 function fallbackProduct(id:number):Product{return products.find(item=>item.id===id)||products[0]}
 function mapListProduct(item:ApiProductListItem):Product{const fallback=fallbackProduct(item.id);return{...fallback,id:item.id,productCode:item.product_code,name:item.name,brand:item.brand,category:item.category,merchant:item.merchant,image:item.main_image_url||fallback.image,price:item.sale_price==null?fallback.price:Number(item.sale_price),originalPrice:item.market_price==null?undefined:Number(item.market_price),stock:item.stock_quantity??0,reviewStatus:item.audit_status==='APPROVED'?'已通过':fallback.reviewStatus,updatedAt:item.updated_at}}

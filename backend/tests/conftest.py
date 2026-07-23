@@ -60,6 +60,11 @@ PRODUCT = {
     "merchant": "知味食品旗舰店", "merchant_id": 1, "main_image_url": "https://example.test/oat.jpg",
     "sale_price": Decimal("32.90"), "market_price": Decimal("39.90"), "stock_quantity": 88, "sellable": True,
     "audit_status": "APPROVED", "sale_status": "ON_SALE", "ingredient_version": 1,
+    "average_rating": Decimal("4.50"), "review_count": 2, "sales_count": 12,
+    "match_status": "FULL_MATCH", "match_reason": "Matches current conditions",
+    "evidence_text": "Structured ingredients match the source label", "info_source": "Product package label",
+    "contains": [{"entity_code": "ING001", "name": "oat", "entity_type": "INGREDIENT", "relation_type": "CONTAINS", "confidence": Decimal("1"), "source_code": "SRC001", "audit_status": "APPROVED"}],
+    "may_contain": [], "unknown": [],
     "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc), "updated_at": datetime(2026, 1, 2, tzinfo=timezone.utc),
 }
 
@@ -74,7 +79,7 @@ DETAIL = {
     "contains": [{"entity_code": "ING001", "name": "燕麦", "entity_type": "INGREDIENT", "relation_type": "CONTAINS", "confidence": Decimal("1"), "source_code": "SRC001", "audit_status": "APPROVED"}],
     "may_contain": [],
     "unknown": [{"entity_code": "UNK001", "name": "unknown ingredient", "entity_type": "UNKNOWN", "relation_type": "UNKNOWN", "confidence": Decimal("0.3"), "source_code": "SRC001", "audit_status": "APPROVED"}],
-    "sales_quantity": 12, "average_rating": Decimal("4.50"), "review_count": 2,
+    "sales_count": 12, "average_rating": Decimal("4.50"), "review_count": 2,
     "match_status": "FULL_MATCH", "match_reason": "Matches current conditions",
     "evidence_text": "Structured ingredients match the source label", "info_source": "Product package label",
     "audit_status": "APPROVED", "sale_status": "ON_SALE",

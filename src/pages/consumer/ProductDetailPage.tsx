@@ -87,7 +87,7 @@ export function ProductDetailPage() {
         <div className="detail-meta"><span>{product.brand}</span><span>{product.category}</span><span><Star size={13} fill="currentColor"/> {product.average_rating === null ? '暂无评分' : product.average_rating}</span></div>
         <h1>{product.name}</h1>
         <p>{product.subtitle || product.description || '暂无商品介绍'}</p>
-        <div className="detail-price"><strong>{defaultSpec?.sale_price === null || !defaultSpec ? '暂无价格' : `¥${defaultSpec.sale_price}`}</strong>{defaultSpec?.market_price && <del>¥{defaultSpec.market_price}</del>}<small>已售 {product.sales_quantity} 件</small></div>
+        <div className="detail-price"><strong>{defaultSpec?.sale_price === null || !defaultSpec ? '暂无价格' : `¥${defaultSpec.sale_price}`}</strong>{defaultSpec?.market_price && <del>¥{defaultSpec.market_price}</del>}<small>已售 {product.sales_count} 件</small></div>
         <div className="match-summary soft-card"><MatchBadge status={matchStatus}/><p><ShieldCheck size={15}/>{product.match_reason || '暂无匹配说明'}{product.evidence_text ? `。${product.evidence_text}` : ''}</p></div>
         <div className="spec-row"><span>规格</span><button className="spec-button">{defaultSpec?.spec_name || '暂无规格'}</button></div>
         <div className="spec-row"><span>库存</span><span className="muted">{defaultSpec?.stock_quantity === null || !defaultSpec ? '暂无数据' : `现货 ${defaultSpec.stock_quantity} 件`}</span></div>
