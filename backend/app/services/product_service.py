@@ -17,6 +17,11 @@ class ProductService:
             raise AppError("MYSQL_UNAVAILABLE", "Product database is unavailable", 503) from exc
         return {"total": total, "page": filters["page"], "page_size": filters["page_size"], "items": items}
 
+    def category_stats(self) -> list[dict[str, Any]]:
+        try:
+            return self.repository.category_stats()
+        except (SQLAlchemyError, RuntimeError) as exc:
+            raise AppError("MYSQL_UNAVAILABLE", "Product database is unavailable", 503) from exc
     def get_detail(self, product_code: str) -> dict[str, Any]:
         try:
             product = self.repository.get_detail(product_code)

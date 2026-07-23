@@ -28,57 +28,31 @@ class ProductRepository:
     def list_products(self, filters: Mapping[str, Any]) -> tuple[int, list[dict[str, Any]]]:
         where = ["p.is_deleted=0", "p.review_status='APPROVED'"]
         params: dict[str, Any] = {}
-        if filters.get("status"):
-            where.append("p.sale_status=:status")
-            params["status"] = filters["status"]
-        else:
-            where.append("p.sale_status='ON_SALE'")
-        for field, column in (("category_code", "c.category_code"), ("brand_code", "b.brand_code"), ("merchant_id", "p.merchant_id")):
-            if filters.get(field) is not None:
-                where.append(f"{column}=:{field}")
-                params[field] = filters[field]
+        where.append("p.sale_status=:status" if filters.get("status") else "p.sale_status='ON_SALE'")
+        if filters.get("status"): params["status"] = filters["status"]
+        for field,column in (("category_code","c.category_code"),("category","c.category_name"),("brand_code","b.brand_code"),("brand","b.brand_name"),("merchant_id","p.merchant_id")):
+            if filters.get(field) is not None: where.append(f"{column}=:{field}");params[field]=filters[field]
         if filters.get("keyword"):
-            where.append("(p.product_name LIKE :keyword OR p.product_code LIKE :keyword)")
-            params["keyword"] = f"%{filters['keyword']}%"
-
-        predicate = " AND ".join(where)
-        sort_column = SORT_COLUMNS[filters["sort_by"]]
-        sort_order = "DESC" if filters["sort_order"] == "desc" else "ASC"
-        params.update(limit=filters["page_size"], offset=(filters["page"] - 1) * filters["page_size"])
-        base = """
-        FROM product p
-        JOIN brand b ON b.id=p.brand_id
-        JOIN category c ON c.id=p.category_id
-        JOIN merchant m ON m.id=p.merchant_id
-        LEFT JOIN product_spec s ON s.product_id=p.id AND s.is_default=1 AND s.status='ACTIVE'
-        LEFT JOIN product_inventory inv ON inv.spec_id=s.id AND inv.warehouse_code='DEFAULT'
-        """
-        price = """
-        (SELECT pp.amount FROM product_price pp WHERE pp.spec_id=s.id AND pp.price_type=:price_type
-          AND pp.status='ACTIVE' AND pp.valid_from<=CURRENT_TIMESTAMP(3)
-          AND (pp.valid_to IS NULL OR pp.valid_to>CURRENT_TIMESTAMP(3))
-          ORDER BY pp.valid_from DESC, pp.id DESC LIMIT 1)
-        """
-        query = text(f"""
-        SELECT p.id,p.product_code,p.product_name AS name,p.subtitle,
-          b.brand_name AS brand,b.brand_code,c.category_name AS category,c.category_code,
-          m.merchant_name AS merchant,p.merchant_id,
-          (SELECT pi.image_url FROM product_image pi WHERE pi.product_id=p.id AND pi.image_type='MAIN'
-             AND pi.status='ACTIVE' ORDER BY pi.sort_order,pi.id LIMIT 1) AS main_image_url,
-          {price.replace(':price_type', "'SALE'")} AS sale_price,
-          {price.replace(':price_type', "'LIST'")} AS market_price,
-          CASE WHEN inv.id IS NULL THEN NULL ELSE GREATEST(inv.available_qty-inv.locked_qty,0) END AS stock_quantity,
-          CASE WHEN inv.id IS NULL THEN NULL WHEN inv.available_qty-inv.locked_qty>0 THEN 1 ELSE 0 END AS sellable,
-          p.review_status AS audit_status,p.sale_status,
-          (SELECT MAX(psn.version_no) FROM product_ingredient_snapshot psn WHERE psn.product_id=p.id AND psn.effective_to IS NULL) AS ingredient_version,
-          p.created_at,p.updated_at
-        {base} WHERE {predicate}
-        ORDER BY {sort_column} {sort_order}, p.id ASC LIMIT :limit OFFSET :offset
-        """)
+            where.append("(p.product_name LIKE :keyword OR p.product_code LIKE :keyword)");params["keyword"]=f"%{filters['keyword']}%"
+        sale_price = "(SELECT pp.amount FROM product_price pp WHERE pp.spec_id=s.id AND pp.price_type='SALE' AND pp.status='ACTIVE' AND pp.valid_from<=CURRENT_TIMESTAMP(3) AND (pp.valid_to IS NULL OR pp.valid_to>CURRENT_TIMESTAMP(3)) ORDER BY pp.valid_from DESC,pp.id DESC LIMIT 1)"
+        for key,operator in (("price_min",">="),("price_max","<=")):
+            if filters.get(key) is not None:where.append(f"{sale_price} {operator} :{key}");params[key]=filters[key]
+        for index,name in enumerate(filters.get("excluded_ingredients") or []):
+            key=f"excluded_{index}";where.append(f"NOT EXISTS (SELECT 1 FROM product_ingredient_snapshot pis WHERE pis.product_id=p.id AND pis.effective_to IS NULL AND pis.version_no=(SELECT MAX(pv.version_no) FROM product_ingredient_snapshot pv WHERE pv.product_id=p.id AND pv.effective_to IS NULL) AND pis.audit_status='APPROVED' AND pis.relation_type IN ('CONTAINS','MAY_CONTAIN') AND pis.normalized_name LIKE :{key})");params[key]=f"%{name}%"
+        nutrients=(("sugar_max","NUT_SUGAR","<="),("fat_max","NUT_FAT","<="),("protein_min","NUT_PROTEIN",">="),("sodium_max","NUT_SODIUM","<="))
+        for key,code,operator in nutrients:
+            if filters.get(key) is not None:where.append(f"EXISTS (SELECT 1 FROM product_nutrition pn WHERE pn.product_id=p.id AND pn.nutrient_code='{code}' AND pn.audit_status='APPROVED' AND pn.nutrient_value {operator} :{key})");params[key]=filters[key]
+        predicate=" AND ".join(where);sort_column=SORT_COLUMNS[filters["sort_by"]];sort_order="DESC" if filters["sort_order"]=="desc" else "ASC"
+        params.update(limit=filters["page_size"],offset=(filters["page"]-1)*filters["page_size"])
+        base="""FROM product p JOIN brand b ON b.id=p.brand_id JOIN category c ON c.id=p.category_id JOIN merchant m ON m.id=p.merchant_id LEFT JOIN product_spec s ON s.product_id=p.id AND s.is_default=1 AND s.status='ACTIVE' LEFT JOIN product_inventory inv ON inv.spec_id=s.id AND inv.warehouse_code='DEFAULT'"""
+        query=text(f"""SELECT p.id,p.product_code,p.product_name name,p.subtitle,b.brand_name brand,b.brand_code,c.category_name category,c.category_code,m.merchant_name merchant,p.merchant_id,(SELECT pi.image_url FROM product_image pi WHERE pi.product_id=p.id AND pi.image_type='MAIN' AND pi.status='ACTIVE' ORDER BY pi.sort_order,pi.id LIMIT 1) main_image_url,{sale_price} sale_price,(SELECT pp.amount FROM product_price pp WHERE pp.spec_id=s.id AND pp.price_type='LIST' AND pp.status='ACTIVE' AND pp.valid_from<=CURRENT_TIMESTAMP(3) AND (pp.valid_to IS NULL OR pp.valid_to>CURRENT_TIMESTAMP(3)) ORDER BY pp.valid_from DESC,pp.id DESC LIMIT 1) market_price,CASE WHEN inv.id IS NULL THEN NULL ELSE GREATEST(inv.available_qty-inv.locked_qty,0) END stock_quantity,CASE WHEN inv.id IS NULL THEN NULL WHEN inv.available_qty-inv.locked_qty>0 THEN 1 ELSE 0 END sellable,p.review_status audit_status,p.sale_status,(SELECT MAX(psn.version_no) FROM product_ingredient_snapshot psn WHERE psn.product_id=p.id AND psn.effective_to IS NULL) ingredient_version,p.created_at,p.updated_at {base} WHERE {predicate} ORDER BY {sort_column} {sort_order},p.id ASC LIMIT :limit OFFSET :offset""")
         with self._factory() as session:
-            total = session.execute(text(f"SELECT COUNT(DISTINCT p.id) {base} WHERE {predicate}"), params).scalar_one()
-            rows = session.execute(query, params).mappings().all()
-            return int(total), [dict(row) for row in rows]
+            total=session.execute(text(f"SELECT COUNT(DISTINCT p.id) {base} WHERE {predicate}"),params).scalar_one();rows=session.execute(query,params).mappings().all();return int(total),[dict(row) for row in rows]
+
+    def category_stats(self) -> list[dict[str, Any]]:
+        with self._factory() as session:
+            rows=session.execute(text("""SELECT c.category_code,c.category_name,COUNT(p.id) product_count FROM category c LEFT JOIN product p ON p.category_id=c.id AND p.is_deleted=0 AND p.review_status='APPROVED' AND p.sale_status='ON_SALE' WHERE c.status='ACTIVE' GROUP BY c.id,c.category_code,c.category_name,c.sort_order ORDER BY c.sort_order,c.id""")).mappings().all()
+            return [dict(row) for row in rows]
 
     def get_detail(self, product_code: str) -> dict[str, Any] | None:
         with self._factory() as session:

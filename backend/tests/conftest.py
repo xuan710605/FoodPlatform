@@ -91,8 +91,12 @@ GRAPH = {
 
 
 class FakeProductService:
+    def __init__(self): self.last_filters = None
     def list_products(self, filters):
+        self.last_filters = filters
         return {"total": 1, "page": filters["page"], "page_size": filters["page_size"], "items": [PRODUCT]}
+    def category_stats(self):
+        return [{"category_code":"CAT001","category_name":"\u65e9\u9910\u9ea6\u7247","product_count":1}]
 
     def get_detail(self, code):
         from app.core.exceptions import AppError
