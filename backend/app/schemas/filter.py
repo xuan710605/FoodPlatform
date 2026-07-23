@@ -19,6 +19,7 @@ class FilterAnalyzeRequest(BaseModel):
 
 class FilterConditions(BaseModel):
     exclude_ingredients: list[str] = Field(default_factory=list, max_length=20)
+    exclude_categories: list[str] = Field(default_factory=list, max_length=10)
     nutrition_targets: list[NutritionTarget] = Field(default_factory=list, max_length=10)
     max_price: Decimal | None = Field(default=None, ge=0)
     category_code: str | None = Field(default=None, max_length=32)
@@ -37,7 +38,13 @@ class FilterSearchRequest(FilterConditions):
 
     @model_validator(mode="after")
     def require_condition(self):
-        if not self.text and not (self.exclude_ingredients or self.nutrition_targets or self.max_price is not None or self.category_code):
+        if not self.text and not (
+            self.exclude_ingredients
+            or self.exclude_categories
+            or self.nutrition_targets
+            or self.max_price is not None
+            or self.category_code
+        ):
             raise ValueError("At least one filter condition or text is required")
         return self
 

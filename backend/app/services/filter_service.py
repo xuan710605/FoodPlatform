@@ -24,12 +24,14 @@ class FilterService:
         analyzed = self.analyzer.analyze(payload.text) if payload.text else None
         conditions = FilterConditions(
             exclude_ingredients=payload.exclude_ingredients or (analyzed.exclude_ingredients if analyzed else []),
+            exclude_categories=payload.exclude_categories or (analyzed.exclude_categories if analyzed else []),
             nutrition_targets=payload.nutrition_targets or (analyzed.nutrition_targets if analyzed else []),
             max_price=payload.max_price if payload.max_price is not None else (analyzed.max_price if analyzed else None),
             category_code=payload.category_code or (analyzed.category_code if analyzed else None),
         )
         try:
             _, products = self.product_repository.list_products({"page":1,"page_size":100,"keyword":None,"category_code":conditions.category_code,"brand_code":None,"merchant_id":None,"status":None,"sort_by":"created_at","sort_order":"desc"})
+            products = [item for item in products if item.get("category_code") not in conditions.exclude_categories]
             details = {item["product_code"]: self.product_repository.get_detail(item["product_code"]) for item in products}
         except (SQLAlchemyError, RuntimeError) as exc:
             raise AppError("MYSQL_UNAVAILABLE", "Product database is unavailable", 503) from exc

@@ -76,3 +76,34 @@ def test_excluding_peanut_keeps_risk_products_out_of_matches():
     assert statuses["FP0002"] == "RISK"
     assert statuses["FP0017"] == "NOT_MATCH"
     assert {code for code,status in statuses.items() if status == "MATCH"}.isdisjoint({"FP0002","FP0017"})
+
+def test_negated_juice_is_an_excluded_category(client):
+    response = client.post("/api/v1/filter/analyze", json={"text": "不含果汁"})
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["category_code"] is None
+    assert data["exclude_categories"] == ["CAT005"]
+
+
+def test_negated_peanut_keeps_positive_breakfast_category(client):
+    response = client.post("/api/v1/filter/analyze", json={"text": "不要花生的早餐"})
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["exclude_ingredients"] == ["花生"]
+    assert data["exclude_categories"] == []
+    assert data["category_code"] == "CAT001"
+
+
+def test_high_protein_milk_is_positive_dairy_query(client):
+    response = client.post("/api/v1/filter/analyze", json={"text": "高蛋白牛奶"})
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["category_code"] == "CAT003"
+    assert data["exclude_ingredients"] == []
+    assert data["exclude_categories"] == []
+    assert data["nutrition_targets"][0]["nutrient_code"] == "NUT_PROTEIN"
+
+
+def test_excluded_category_is_removed_from_search_results():
+    result = filter_service().search(FilterSearchRequest(exclude_categories=["CAT003"]))
+    assert "FP0004" not in {item["product_code"] for item in result["items"]}
