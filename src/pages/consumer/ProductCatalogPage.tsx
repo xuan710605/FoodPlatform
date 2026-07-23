@@ -5,11 +5,11 @@ import { Modal } from '../../components/common/UI'
 import { ProductCard } from '../../components/product/ProductCard'
 import { ProductFilterPanel } from '../../components/product/ProductFilterPanel'
 import { getProductBrands,getProductCategoryCounts,queryProducts,type BrandOption,type CategoryCount,type ProductQuery } from '../../services/productCatalog'
-import type { ProductCardData } from '../../types'
+import type { CatalogProduct } from '../../types'
 
 const numberValue=(params:URLSearchParams,key:string)=>{const value=params.get(key);return value===null||value===''?undefined:Number(value)}
 export function ProductsPage(){
- const [params,setParams]=useSearchParams();const [items,setItems]=useState<ProductCardData[]>([]);const [total,setTotal]=useState(0);const [categories,setCategories]=useState<CategoryCount[]>([]);const [brands,setBrands]=useState<BrandOption[]>([]);const [loading,setLoading]=useState(true);const [error,setError]=useState('');const [drawer,setDrawer]=useState(false);const [view,setView]=useState<'grid'|'list'>('grid');const pageSize=12
+ const [params,setParams]=useSearchParams();const [items,setItems]=useState<CatalogProduct[]>([]);const [total,setTotal]=useState(0);const [categories,setCategories]=useState<CategoryCount[]>([]);const [brands,setBrands]=useState<BrandOption[]>([]);const [loading,setLoading]=useState(true);const [error,setError]=useState('');const [drawer,setDrawer]=useState(false);const [view,setView]=useState<'grid'|'list'>('grid');const pageSize=12
  const query=useMemo<ProductQuery>(()=>({keyword:params.get('keyword')||params.get('q')||undefined,category:params.get('category')||undefined,brand:params.get('brand')||undefined,excludedIngredients:params.getAll('exclude'),sugarMax:numberValue(params,'sugar_max'),fatMax:numberValue(params,'fat_max'),proteinMin:numberValue(params,'protein_min'),sodiumMax:numberValue(params,'sodium_max'),priceMin:numberValue(params,'price_min'),priceMax:numberValue(params,'price_max'),page:Number(params.get('page')||1),pageSize,sortBy:(params.get('sort_by') as ProductQuery['sortBy'])||'created_at',sortOrder:(params.get('sort_order') as ProductQuery['sortOrder'])||'desc'}),[params])
  useEffect(()=>{Promise.all([getProductCategoryCounts(),getProductBrands()]).then(([c,b])=>{setCategories(c);setBrands(b)}).catch(e=>setError(e instanceof Error?e.message:'筛选选项加载失败'))},[])
  useEffect(()=>{let active=true;setLoading(true);queryProducts(query).then(result=>{if(active){setItems(result.items);setTotal(result.total);setError('')}}).catch(e=>{if(active){setItems([]);setTotal(0);setError(e instanceof Error?e.message:'商品加载失败')}}).finally(()=>active&&setLoading(false));return()=>{active=false}},[query])

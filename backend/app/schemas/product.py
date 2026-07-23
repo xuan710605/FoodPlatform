@@ -36,10 +36,6 @@ class ProductListItem(MoneyModel):
     average_rating: Decimal | None
     review_count: int
     sales_count: int
-    match_status: str
-    match_reason: str | None
-    evidence_text: str | None
-    info_source: str | None
     contains: list[IngredientSummary]
     may_contain: list[IngredientSummary]
     unknown: list[IngredientSummary]

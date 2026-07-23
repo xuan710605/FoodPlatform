@@ -7,7 +7,10 @@ def test_product_list_pagination(client):
     assert item["average_rating"] == "4.50"
     assert item["review_count"] == 2
     assert item["sales_count"] == 12
-    assert item["match_status"] == "FULL_MATCH"
+    assert "match_status" not in item
+    assert "match_reason" not in item
+    assert "evidence_text" not in item
+    assert "info_source" not in item
     assert item["contains"][0]["relation_type"] == "CONTAINS"
     assert item["may_contain"] == []
     assert item["unknown"] == []

@@ -37,7 +37,7 @@ export interface Product {
   updatedAt: string
 }
 
-export interface ProductCardData {
+export interface CatalogProduct {
   id: number
   productCode?: string
   name: string
@@ -53,11 +53,9 @@ export interface ProductCardData {
   additives?: string[]
   mayContain?: string[]
   unknown?: string[]
-  status: MatchStatus
-  reason: string | null
-  evidence?: string | null
-  source?: string | null
 }
+export interface SmartFilterProduct extends Product {}
+
 export interface Order {
   id: string
   date: string
