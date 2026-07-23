@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordBearer
 from app.core.exceptions import AppError
 from app.schemas.auth import UserIdentity
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token", auto_error=False)
 
 
 def get_current_user(request: Request, token: str | None = Depends(oauth2_scheme)) -> UserIdentity:

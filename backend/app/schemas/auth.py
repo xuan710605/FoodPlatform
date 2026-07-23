@@ -49,6 +49,11 @@ class TokenResponse(BaseModel):
     user: UserIdentity
 
 
+class OAuth2TokenResponse(BaseModel):
+    access_token: str
+    token_type: Literal["bearer"] = "bearer"
+
+
 class TokenClaims(BaseModel):
     sub: str
     user_id: int

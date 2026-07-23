@@ -119,6 +119,36 @@ def test_register_and_login_http_contract(client):
     assert logged_in.json()["data"]["token_type"] == "bearer"
     assert logged_in.json()["data"]["access_token"] == "good-token"
 
+
+def test_swagger_oauth2_form_login_and_authenticated_user(client):
+    openapi = client.get("/openapi.json").json()
+    password_flow = openapi["components"]["securitySchemes"]["OAuth2PasswordBearer"]["flows"]["password"]
+    assert password_flow["tokenUrl"] == "/api/v1/auth/token"
+    token_content = openapi["paths"]["/api/v1/auth/token"]["post"]["requestBody"]["content"]
+    assert "application/x-www-form-urlencoded" in token_content
+
+    logged_in = client.post("/api/v1/auth/token", data={
+        "username": "api_user", "password": "StrongPass123"
+    })
+    assert logged_in.status_code == 200
+    assert logged_in.json() == {"access_token": "good-token", "token_type": "bearer"}
+
+    current_user = client.get(
+        "/api/v1/users/me",
+        headers={"Authorization": f"Bearer {logged_in.json()['access_token']}"},
+    )
+    assert current_user.status_code == 200
+    assert current_user.json()["data"]["username"] == "test_consumer"
+
+
+def test_swagger_oauth2_form_login_wrong_password(client):
+    response = client.post("/api/v1/auth/token", data={
+        "username": "api_user", "password": "wrong-password"
+    })
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "INVALID_CREDENTIALS"
+
+
 def test_auth_cors_preflight(client):
     response = client.options("/api/v1/auth/login", headers={
         "Origin": "http://localhost:5173",

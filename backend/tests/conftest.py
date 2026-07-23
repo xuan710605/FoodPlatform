@@ -112,7 +112,10 @@ class FakeAuthService:
     def register(self, username, email, _password, _nickname):
         return AUTH_USER | {"username": username, "email": email}
 
-    def login(self, _identity, _password):
+    def login(self, _identity, password):
+        if password == "wrong-password":
+            from app.core.exceptions import AppError
+            raise AppError("INVALID_CREDENTIALS", "Invalid username/email or password", 401)
         return {"access_token": "good-token", "token_type": "bearer", "expires_in": 3600, "user": AUTH_USER}
 
     def authenticate_token(self, token):

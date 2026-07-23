@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Depends, Request, status
+from fastapi.security import OAuth2PasswordRequestForm
 
 from app.core.responses import SuccessResponse
-from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserIdentity
+from app.schemas.auth import LoginRequest, OAuth2TokenResponse, RegisterRequest, TokenResponse, UserIdentity
 
 router = APIRouter()
 
@@ -32,3 +33,14 @@ def register(request: Request, payload: RegisterRequest) -> dict:
 def login(request: Request, payload: LoginRequest) -> dict:
     result = request.app.state.auth_service.login(payload.username, payload.password)
     return {"success": True, "data": result, "message": "authenticated", "request_id": request.state.request_id}
+
+
+@router.post(
+    "/token",
+    response_model=OAuth2TokenResponse,
+    summary="OAuth2 password login",
+    description="OAuth2 Password Flow token endpoint used by Swagger UI Authorize.",
+)
+def oauth2_token(request: Request, form: OAuth2PasswordRequestForm = Depends()) -> dict:
+    result = request.app.state.auth_service.login(form.username, form.password)
+    return {"access_token": result["access_token"], "token_type": result["token_type"]}
