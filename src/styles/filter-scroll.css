@@ -1,6 +1,6 @@
 @media (min-width:901px){
   .product-filter-page .catalog-layout,.smart-filter-page .smart-shell{align-items:start}
-  .product-filter-page .filter-panel,.smart-filter-page .smart-panel{position:sticky;top:100px;height:auto;max-height:none;overflow:visible;align-self:start}
+  .product-filter-page .filter-panel,.smart-filter-page .smart-panel{position:sticky;top:100px;height:auto;max-height:calc(100vh - 120px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable;align-self:start}
   .product-filter-page .catalog-results-scroll,.smart-filter-page .smart-results{height:auto;overflow:visible;padding-right:0}
 }
 
