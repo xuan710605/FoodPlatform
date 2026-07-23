@@ -25,7 +25,9 @@ class ProductRepositoryStub:
             ],
             "ingredient_version":1,
         }
-        if code == "FP0017": return common|{"contains":[{"entity_code":"ING004","name":"花生酱"}],"may_contain":[]}
+        if code == "FP0017":
+            common["nutrition"][0]["value"] = Decimal("12.0")
+            return common|{"contains":[{"entity_code":"ING004","name":"花生酱"}],"may_contain":[]}
         if code == "FP0002": return common|{"contains":[],"may_contain":[{"entity_code":"ING002","name":"花生"}]}
         return common|{"contains":[{"entity_code":"ING001","name":"燕麦"}] if code == "FP0001" else [],"may_contain":[]}
 
@@ -40,7 +42,7 @@ def filter_service():
 
 
 def test_filter_analyze_controlled_rules(client):
-    response = client.post("/api/v1/filter/analyze", json={"text":"帮我找不含花生、50元以内的低糖早餐麦片"})
+    response = client.post("/api/v1/filter/analyze", json={"text":"帮我找不含花生、50元以内、糖不超过5g的早餐麦片"})
     assert response.status_code == 200
     data = response.json()["data"]
     assert data["exclude_ingredients"] == ["花生"]
@@ -101,7 +103,8 @@ def test_high_protein_milk_is_positive_dairy_query(client):
     assert data["category_code"] == "CAT003"
     assert data["exclude_ingredients"] == []
     assert data["exclude_categories"] == []
-    assert data["nutrition_targets"][0]["nutrient_code"] == "NUT_PROTEIN"
+    assert data["nutrition_targets"] == []
+    assert data["preferred_ingredients"] == ["高蛋白"]
 
 
 def test_excluded_category_is_removed_from_search_results():
@@ -134,3 +137,38 @@ def test_saved_preferred_ingredient_affects_order_without_overriding_manual_cond
     assert result["conditions"].exclude_ingredients == ["芝麻", "花生"]
     assert result["items"][0]["product_code"] == "FP0001"
     assert result["items"][0]["preference_hits"] == ["燕麦"]
+
+def test_product_facts_do_not_create_not_match_without_user_exclusions():
+    result = filter_service().search(FilterSearchRequest())
+    statuses = {item["product_code"]: item["match_status"] for item in result["items"]}
+    assert statuses["FP0017"] == "MATCH"
+    assert statuses["FP0002"] == "MATCH"
+    assert result["conditions"].exclude_ingredients == []
+
+
+def test_exclusion_reason_is_transparent():
+    result = filter_service().search(FilterSearchRequest(exclude_ingredients=["花生"]))
+    item = next(item for item in result["items"] if item["product_code"] == "FP0017")
+    assert item["match_status"] == "NOT_MATCH"
+    assert item["reason_source"] == "exclude"
+    assert item["reason"] == "含有用户排除成分：花生"
+
+
+def test_dynamic_sugar_limit_marks_high_sugar_product_not_match():
+    request = FilterSearchRequest.model_validate({
+        "nutrition_targets": [{
+            "nutrient_code": "NUT_SUGAR", "nutrient_name": "糖", "operator": "LTE",
+            "value": "8", "unit": "g",
+        }]
+    })
+    result = filter_service().search(request)
+    item = next(item for item in result["items"] if item["product_code"] == "FP0017")
+    assert item["match_status"] == "NOT_MATCH"
+    assert item["reason_source"] == "nutrition"
+    assert item["reason"] == "糖12g超过限制8g"
+    assert result["conditions"].nutrition_targets[0].value == Decimal("8")
+
+
+def test_empty_nutrition_conditions_do_not_apply_fixed_thresholds():
+    analyzed = ControlledFilterAnalyzer().analyze("低糖商品")
+    assert analyzed.nutrition_targets == []

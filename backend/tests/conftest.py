@@ -191,7 +191,8 @@ class FakeFilterService:
             "items": [{
                 "product_code": "FP0001", "name": "原味燕麦片", "brand": "谷物日记",
                 "category": "早餐麦片", "main_image_url": None, "sale_price": Decimal("32.90"),
-                "match_status": "MATCH", "reasons": ["满足当前条件"],
+                "match_status": "MATCH", "reason": "满足当前条件", "reason_source": "match", "reasons": ["满足当前条件"],
+                "reason_details": [{"source": "match", "message": "满足当前条件"}],
                 "contains_hits": [], "may_contain_hits": [], "preference_hits": [],
             }],
         }

@@ -43,12 +43,6 @@ CATEGORY_SYNONYMS = {
     "植物奶": "CAT010",
 }
 EXCLUDABLE_CATEGORY_CODES = {"CAT005"}
-NUTRIENT_RULES = {
-    "低糖": NutritionTarget(nutrient_code="NUT_SUGAR", nutrient_name="糖", operator="LTE", value=Decimal("5"), unit="g"),
-    "低钠": NutritionTarget(nutrient_code="NUT_SODIUM", nutrient_name="钠", operator="LTE", value=Decimal("500"), unit="mg"),
-    "高蛋白": NutritionTarget(nutrient_code="NUT_PROTEIN", nutrient_name="蛋白质", operator="GTE", value=Decimal("8"), unit="g"),
-}
-
 
 def _negated_matches(text: str) -> tuple[list[str], list[str], str]:
     ingredients: list[str] = []
@@ -73,7 +67,8 @@ class ControlledFilterAnalyzer:
     def analyze(self, text: str) -> FilterAnalyzeResult:
         normalized = " ".join(text.strip().split())
         exclusions, excluded_categories, positive_text = _negated_matches(normalized)
-        targets = [rule.model_copy(deep=True) for name, rule in NUTRIENT_RULES.items() if name in normalized]
+        targets: list[NutritionTarget] = []
+        preferred = [name for name in ("高蛋白",) if name in normalized]
         explicit_patterns = [
             ("糖", "NUT_SUGAR", "g"), ("钠", "NUT_SODIUM", "mg"),
             ("脂肪", "NUT_FAT", "g"), ("蛋白质", "NUT_PROTEIN", "g"),
@@ -97,6 +92,7 @@ class ControlledFilterAnalyzer:
             normalized_text=normalized,
             exclude_ingredients=exclusions,
             exclude_categories=excluded_categories,
+            preferred_ingredients=preferred,
             nutrition_targets=targets,
             max_price=Decimal(price_match.group(1)) if price_match else None,
             category_code=category_code,

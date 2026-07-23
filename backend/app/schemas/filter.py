@@ -1,7 +1,7 @@
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 
 class NutritionTarget(BaseModel):
@@ -37,18 +37,9 @@ class FilterSearchRequest(FilterConditions):
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=20, ge=1, le=100)
 
-    @model_validator(mode="after")
-    def require_condition(self):
-        if not self.text and not (
-            self.exclude_ingredients
-            or self.exclude_categories
-            or self.nutrition_targets
-            or self.max_price is not None
-            or self.category_code
-        ):
-            raise ValueError("At least one filter condition or text is required")
-        return self
-
+class FilterReason(BaseModel):
+    source: Literal["exclude", "nutrition", "price", "unknown", "preference", "match"]
+    message: str
 
 class FilterProductItem(BaseModel):
     product_code: str
@@ -58,7 +49,10 @@ class FilterProductItem(BaseModel):
     main_image_url: str | None
     sale_price: Decimal | None
     match_status: Literal["MATCH", "RISK", "NOT_MATCH", "UNKNOWN"]
+    reason: str
+    reason_source: Literal["exclude", "nutrition", "price", "unknown", "preference", "match"]
     reasons: list[str]
+    reason_details: list[FilterReason]
     contains_hits: list[str]
     may_contain_hits: list[str]
     preference_hits: list[str]
