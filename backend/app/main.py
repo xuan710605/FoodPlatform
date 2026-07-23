@@ -13,6 +13,7 @@ from app.core.exceptions import install_exception_handlers
 from app.core.logging import configure_logging, request_id_context
 from app.db.mysql import create_mysql_engine, create_session_factory
 from app.db.neo4j import create_neo4j_driver
+from app.repositories.address_repository import AddressRepository
 from app.repositories.catalog_repository import CatalogRepository
 from app.repositories.commerce_repository import CommerceRepository
 from app.repositories.filter_repository import FilterGraphRepository
@@ -20,6 +21,7 @@ from app.repositories.graph_repository import GraphRepository
 from app.repositories.preference_repository import PreferenceRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.product_repository import ProductRepository
+from app.services.address_service import AddressService
 from app.services.auth_service import AuthService
 from app.services.cart_service import CartService
 from app.services.order_service import OrderService
@@ -48,11 +50,13 @@ async def lifespan(app: FastAPI):
     app.state.neo4j_driver = driver
     app.state.product_service = ProductService(product_repository)
     app.state.auth_service = AuthService(user_repository, settings)
+    address_repository = AddressRepository(session_factory)
+    app.state.address_service = AddressService(address_repository)
     app.state.preference_service = PreferenceService(PreferenceRepository(session_factory))
     app.state.catalog_service = CatalogService(CatalogRepository(session_factory))
     commerce_repository = CommerceRepository(session_factory)
     app.state.cart_service = CartService(commerce_repository)
-    app.state.order_service = OrderService(commerce_repository)
+    app.state.order_service = OrderService(commerce_repository, address_repository)
     app.state.graph_service = GraphService(
         product_repository,
         GraphRepository(driver, settings.neo4j_database),

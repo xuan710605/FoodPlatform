@@ -8,7 +8,7 @@ import { getCart, listOrders, type ApiOrder } from '../../services/commerce'
 import { useApp } from '../../store/AppStore'
 
 const accountTabs=[['profile','个人资料',UserRound],['orders','我的订单',Package],['favorites','我的收藏',Heart],['history','浏览历史',Clock3],['addresses','收货地址',MapPin],['reviews','我的评价',MessageSquare],['messages','消息通知',Bell],['security','账号安全',LockKeyhole]] as const
-const statusLabels:Record<ApiOrder['status'],string>={PENDING_PAYMENT:'待付款',PAID:'已支付',CANCELLED:'已取消',COMPLETED:'已完成'}
+const statusLabels:Record<ApiOrder['status'],string>={PENDING_PAYMENT:'待付款',PAID:'已支付',SHIPPING:'配送中',CANCELLED:'已取消',COMPLETED:'已完成'}
 export function AccountPage(){
  const [params,setParams]=useSearchParams();const navigate=useNavigate();const tab=params.get('tab')||'profile';const {favorites,browsingHistory,filterHistory,currentUser,userLoading,refreshUser,replaceFilterHistory,logout,notify}=useApp();const [orders,setOrders]=useState<ApiOrder[]>([]);const [orderTotal,setOrderTotal]=useState(0);const [cartQuantity,setCartQuantity]=useState(0);const [dataLoading,setDataLoading]=useState(true);const [dataError,setDataError]=useState('');const fav=products.filter(p=>favorites.includes(p.id))
  useEffect(()=>{let active=true;setDataLoading(true);Promise.all([listOrders(),getCart()]).then(([orderPage,cart])=>{if(!active)return;setOrders(orderPage.items);setOrderTotal(orderPage.total);setCartQuantity(cart.total_quantity);setDataError('')}).catch(error=>{if(active)setDataError(error instanceof Error?error.message:'账户统计加载失败')}).finally(()=>{if(active)setDataLoading(false)});void refreshUser();return()=>{active=false}},[])

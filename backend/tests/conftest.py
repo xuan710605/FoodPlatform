@@ -183,6 +183,22 @@ class FakeCartService:
     def update(self, _user_id, item_id, quantity): return self.item | {"id":item_id,"quantity":quantity,"subtotal":Decimal("32.90")*quantity}
     def delete(self, _user_id, _item_id): return None
 
+class FakeAddressService:
+    def __init__(self):
+        self.last_user_id = None
+        self.item = {
+            "address_code": "ADDRTEST01", "receiver_name": "测试用户",
+            "receiver_phone": "13800000000", "province": "上海市", "city": "上海市",
+            "district": "徐汇区", "detail_address": "虹桥路718号", "postal_code": "200030",
+            "is_default": True, "created_at": datetime(2026,7,23,tzinfo=timezone.utc),
+            "updated_at": datetime(2026,7,23,tzinfo=timezone.utc),
+        }
+    def list(self,user_id): self.last_user_id=user_id; return [self.item]
+    def create(self,user_id,payload): self.last_user_id=user_id; return self.item | payload
+    def update(self,user_id,address_code,payload): self.last_user_id=user_id; return self.item | payload | {"address_code":address_code}
+    def delete(self,user_id,_address_code): self.last_user_id=user_id
+    def set_default(self,user_id,address_code): self.last_user_id=user_id; return self.item | {"address_code":address_code,"is_default":True}
+
 class FakeOrderService:
     item={"id":31,"order_no":"ORDTEST31","status":"PENDING_PAYMENT","payment_status":"UNPAID","goods_amount":Decimal("32.90"),"shipping_amount":Decimal("6"),"payable_amount":Decimal("38.90"),"paid_amount":Decimal("0"),"placed_at":datetime(2026,7,23,tzinfo=timezone.utc),"paid_at":None,"items":[{"id":51,"product_code":"FP0001","product_name":"原味燕麦片","spec_code":"SPEC001","spec_name":"500g","image_url":None,"unit_price":Decimal("32.90"),"quantity":1,"subtotal":Decimal("32.90"),"ingredient_version":1}]}
     def create(self,_user_id,_payload): return self.item
@@ -208,5 +224,6 @@ def client():
         app.state.catalog_service = FakeCatalogService()
         app.state.filter_service = FakeFilterService()
         app.state.cart_service = FakeCartService()
+        app.state.address_service = FakeAddressService()
         app.state.order_service = FakeOrderService()
         yield test_client

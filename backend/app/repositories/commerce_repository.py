@@ -11,6 +11,12 @@ JOIN product_price pp ON pp.spec_id=s.id AND pp.price_type='SALE' AND pp.status=
  AND pp.valid_from=(SELECT MAX(p2.valid_from) FROM product_price p2 WHERE p2.spec_id=s.id AND p2.price_type='SALE' AND p2.status='ACTIVE' AND p2.valid_from<=CURRENT_TIMESTAMP(3) AND (p2.valid_to IS NULL OR p2.valid_to>CURRENT_TIMESTAMP(3)))
 """
 
+ORDER_STATUS_TO_API = {
+    "PENDING_SHIPMENT": "PAID",
+    "SHIPPED": "SHIPPING",
+}
+
+
 class CommerceRepository:
     def __init__(self, session_factory: sessionmaker[Session]): self._factory=session_factory
 
@@ -91,10 +97,10 @@ class CommerceRepository:
 
     def get_order(self,user_id:int,order_id:int)->dict[str,Any]|None:
         with self._factory() as session:
-            order=session.execute(text("SELECT id,order_no,order_status status,payment_status,goods_amount,shipping_amount,payable_amount,paid_amount,placed_at,paid_at FROM order_info WHERE id=:id AND user_id=:u"),{"id":order_id,"u":user_id}).mappings().first()
+            order=session.execute(text("SELECT id,order_no,order_status status,payment_status,receiver_snapshot,goods_amount,shipping_amount,payable_amount,paid_amount,buyer_remark,placed_at,paid_at,shipped_at,completed_at,cancelled_at,cancel_reason FROM order_info WHERE id=:id AND user_id=:u"),{"id":order_id,"u":user_id}).mappings().first()
             if not order:return None
             items=session.execute(text("SELECT id,product_code_snapshot product_code,product_name_snapshot product_name,spec_code_snapshot spec_code,spec_name_snapshot spec_name,image_url_snapshot image_url,unit_price,quantity,subtotal_amount subtotal,ingredient_version_snapshot ingredient_version FROM order_item WHERE order_id=:id ORDER BY id"),{"id":order_id}).mappings().all()
-            result=dict(order); result["status"]="PAID" if result["status"]=="PENDING_SHIPMENT" else result["status"]; result["items"]=[dict(x) for x in items]; return result
+            result=dict(order); result["status"]=ORDER_STATUS_TO_API.get(result["status"],result["status"]); snapshot=result.get("receiver_snapshot"); result["receiver_snapshot"]=json.loads(snapshot) if isinstance(snapshot,str) else snapshot; result["items"]=[dict(x) for x in items]; return result
 
     def pay_order(self,user_id:int,order_id:int,channel:str)->dict[str,Any]|None:
         with self._factory.begin() as session:

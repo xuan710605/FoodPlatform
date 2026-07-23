@@ -8,13 +8,17 @@ def test_delete_cart_item(client):
 def test_cart_rejects_insufficient_stock(client):
  r=client.post("/api/v1/cart/items",json={"product_code":"FP0001","quantity":99},headers=AUTH);assert r.status_code==409;assert r.json()["error"]["code"]=="INSUFFICIENT_STOCK"
 def test_create_order_contains_snapshot(client):
- r=client.post("/api/v1/orders",json={"receiver":{"name":"测试用户","phone":"13800000000","address":"测试地址一号"}},headers=AUTH);assert r.status_code==201;assert r.json()["data"]["items"][0]["product_code"]=="FP0001"
+ r=client.post("/api/v1/orders",json={"address_code":"ADDRTEST01"},headers=AUTH);assert r.status_code==201;assert r.json()["data"]["items"][0]["product_code"]=="FP0001"
 def test_order_payment_success(client):
  r=client.post("/api/v1/orders/31/pay",json={"channel":"MOCK_BALANCE"},headers=AUTH);assert r.status_code==200;assert r.json()["data"]["status"]=="PAID";assert r.json()["data"]["paid_at"] is not None
 def test_cancel_order(client):
  r=client.post("/api/v1/orders/31/cancel",headers=AUTH);assert r.status_code==200;assert r.json()["data"]["status"]=="CANCELLED"
 def test_cart_requires_login(client):
  assert client.get("/api/v1/cart").status_code==401
+
+class AddressRepositoryStub:
+ def get_for_user(self,user_id,address_code):
+  return {"address_code":address_code,"receiver_name":"测试","receiver_phone":"13800000000","province":"上海市","city":"上海市","district":"徐汇区","detail_address":"测试地址 1 号","postal_code":None} if user_id==21 else None
 
 class InventoryRepositoryStub:
  def __init__(self): self.stock=10;self.status="PENDING_PAYMENT"
@@ -23,8 +27,8 @@ class InventoryRepositoryStub:
 
 def test_create_deducts_and_cancel_restores_inventory():
  from app.services.order_service import OrderService
- repo=InventoryRepositoryStub();service=OrderService(repo)
- service.create(21,{"cart_item_ids":[7],"receiver":{"name":"测试","phone":"13800000000","address":"测试地址 1 号"},"buyer_remark":None})
+ repo=InventoryRepositoryStub();service=OrderService(repo,AddressRepositoryStub())
+ service.create(21,{"cart_item_ids":[7],"address_code":"ADDRTEST01","buyer_remark":None})
  assert repo.stock==8
  service.cancel(21,31)
  assert repo.stock==10

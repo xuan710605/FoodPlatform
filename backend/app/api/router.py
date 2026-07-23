@@ -1,10 +1,11 @@
 from fastapi import APIRouter
 
-from app.api.v1 import auth, cart, catalog, filter, graph, health, orders, preferences, products, users
+from app.api.v1 import addresses, auth, cart, catalog, filter, graph, health, orders, preferences, products, users
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["Auth"])
 api_router.include_router(users.router, prefix="/users", tags=["Users"])
+api_router.include_router(addresses.router, prefix="/addresses", tags=["Addresses"])
 api_router.include_router(preferences.router, prefix="/preferences", tags=["Preferences"])
 api_router.include_router(cart.router, prefix="/cart", tags=["Cart"])
 api_router.include_router(orders.router, prefix="/orders", tags=["Orders"])

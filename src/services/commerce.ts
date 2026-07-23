@@ -1,13 +1,28 @@
 import { API_BASE_URL, apiRequest, saveAccessToken } from './api'
+
 export type ApiCartItem={id:number;product_code:string;product_name:string;spec_code:string;spec_name:string;image_url:string|null;quantity:number;unit_price:string;subtotal:string;stock_quantity:number;sellable:boolean;selected:boolean}
 export type ApiCart={cart_code:string;items:ApiCartItem[];item_count:number;total_quantity:number;total_amount:string}
-export type ApiOrder={id:number;order_no:string;status:'PENDING_PAYMENT'|'PAID'|'CANCELLED'|'COMPLETED';payment_status:string;goods_amount:string;shipping_amount:string;payable_amount:string;paid_amount:string;placed_at:string;paid_at:string|null;items:Array<{id:number;product_code:string;product_name:string;spec_code:string;spec_name:string;image_url:string|null;unit_price:string;quantity:number;subtotal:string}>}
+export type ApiAddress={address_code:string;receiver_name:string;receiver_phone:string;province:string;city:string;district:string;detail_address:string;postal_code:string|null;is_default:boolean;created_at:string;updated_at:string}
+export type AddressWrite=Omit<ApiAddress,'address_code'|'created_at'|'updated_at'>
+export type ApiOrder={id:number;order_no:string;status:'PENDING_PAYMENT'|'PAID'|'SHIPPING'|'CANCELLED'|'COMPLETED';payment_status:string;receiver_snapshot:Record<string,unknown>|null;goods_amount:string;shipping_amount:string;payable_amount:string;paid_amount:string;placed_at:string;paid_at:string|null;shipped_at:string|null;completed_at:string|null;cancelled_at:string|null;cancel_reason:string|null;buyer_remark:string|null;items:Array<{id:number;product_code:string;product_name:string;spec_code:string;spec_name:string;image_url:string|null;unit_price:string;quantity:number;subtotal:string}>}
+
 const api=apiRequest
-export async function registerApi(username:string,email:string,password:string){return apiRequest<{id:number;user_code:string;username:string;email:string|null;user_type:string;status:string;roles:string[];created_at:string}>('/api/v1/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,email,password,nickname:username})})}export async function loginApi(username:string,password:string){const url=`${API_BASE_URL}/api/v1/auth/login`;console.log('[api] request',{url,hasToken:false});const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});console.log('[api] response',{url,status:response.status});const payload=await response.json();if(!response.ok||!payload.success)throw new Error(payload.error?.message||'登录失败');saveAccessToken(payload.data.access_token);return payload.data}
+
+export async function registerApi(username:string,email:string,password:string){return apiRequest<{id:number;user_code:string;username:string;email:string|null;user_type:string;status:string;roles:string[];created_at:string}>('/api/v1/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,email,password,nickname:username})})}
+export async function loginApi(username:string,password:string){const url=`${API_BASE_URL}/api/v1/auth/login`;console.log('[api] request',{url,hasToken:false});const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});console.log('[api] response',{url,status:response.status});const payload=await response.json();if(!response.ok||!payload.success)throw new Error(payload.error?.message||'登录失败');saveAccessToken(payload.data.access_token);return payload.data}
+
 export const getCart=()=>api<ApiCart>('/api/v1/cart')
 export const addCartItem=(productCode:string,quantity=1)=>api<ApiCartItem>('/api/v1/cart/items',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({product_code:productCode,quantity})})
 export const updateCartItem=(id:number,quantity:number)=>api<ApiCartItem>(`/api/v1/cart/items/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({quantity})})
 export const deleteCartItem=(id:number)=>api<{id:number}>(`/api/v1/cart/items/${id}`,{method:'DELETE'})
-export const createOrder=(cartItemIds:number[],receiver:Record<string,string>,buyerRemark:string)=>api<ApiOrder>('/api/v1/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cart_item_ids:cartItemIds,receiver,buyer_remark:buyerRemark||null})})
+
+export const listAddresses=()=>api<ApiAddress[]>('/api/v1/addresses')
+export const createAddress=(payload:AddressWrite)=>api<ApiAddress>('/api/v1/addresses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+export const updateAddress=(code:string,payload:AddressWrite)=>api<ApiAddress>(`/api/v1/addresses/${code}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+export const deleteAddress=(code:string)=>api<{address_code:string}>(`/api/v1/addresses/${code}`,{method:'DELETE'})
+export const setDefaultAddress=(code:string)=>api<ApiAddress>(`/api/v1/addresses/${code}/default`,{method:'PUT'})
+
+export const createOrder=(cartItemIds:number[],addressCode:string,buyerRemark:string)=>api<ApiOrder>('/api/v1/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cart_item_ids:cartItemIds,address_code:addressCode,buyer_remark:buyerRemark||null})})
+export const getOrder=(id:number)=>api<ApiOrder>(`/api/v1/orders/${id}`)
 export const payOrder=(id:number,channel='MOCK_BALANCE')=>api<ApiOrder>(`/api/v1/orders/${id}/pay`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({channel})})
-export const listOrders=()=>api<{total:number;items:ApiOrder[]}>('/api/v1/orders')
+export const listOrders=()=>api<{total:number;page:number;page_size:number;items:ApiOrder[]}>('/api/v1/orders')
