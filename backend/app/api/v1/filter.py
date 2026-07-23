@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 
 from app.core.responses import SuccessResponse
+from app.dependencies.auth import get_optional_current_user
+from app.schemas.auth import UserIdentity
 from app.schemas.filter import FilterAnalyzeRequest, FilterAnalyzeResult, FilterSearchRequest, FilterSearchResult
 
 router = APIRouter()
@@ -13,6 +15,10 @@ def analyze_filter(request: Request, payload: FilterAnalyzeRequest) -> dict:
 
 
 @router.post("/search", response_model=SuccessResponse[FilterSearchResult], summary="Search food by ingredients and nutrition", description="Combines audited MySQL product facts with Neo4j ingredient aliases, derivatives, and risk evidence.")
-def search_filter(request: Request, payload: FilterSearchRequest) -> dict:
-    data = request.app.state.filter_service.search(payload)
+def search_filter(
+    request: Request,
+    payload: FilterSearchRequest,
+    current_user: UserIdentity | None = Depends(get_optional_current_user),
+) -> dict:
+    data = request.app.state.filter_service.search(payload, current_user.id if current_user else None)
     return {"success":True,"data":data,"message":"ok","request_id":request.state.request_id}

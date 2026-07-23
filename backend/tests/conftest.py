@@ -151,6 +151,14 @@ class FakePreferenceService:
     def list_preferences(self, _user_id):
         return [self.item]
 
+    def get_food_preferences(self, user_id):
+        return getattr(self, "food_by_user", {}).get(user_id, {"exclude_ingredients": [], "preferred_ingredients": []})
+
+    def replace_food_preferences(self, user_id, payload):
+        if not hasattr(self, "food_by_user"):
+            self.food_by_user = {}
+        self.food_by_user[user_id] = payload
+        return payload
     def create_preference(self, _user_id, payload):
         return self.item | {"kind": payload["kind"], "code": payload["code"], "name": payload["name"]}
 
@@ -169,11 +177,13 @@ class FakeFilterService:
     def analyze(self, text):
         return ControlledFilterAnalyzer().analyze(text).model_dump()
 
-    def search(self, payload):
+    def search(self, payload, _user_id=None):
         return {
             "total": 1, "page": payload.page, "page_size": payload.page_size,
             "conditions": {
                 "exclude_ingredients": payload.exclude_ingredients,
+                "exclude_categories": payload.exclude_categories,
+                "preferred_ingredients": payload.preferred_ingredients,
                 "nutrition_targets": payload.nutrition_targets,
                 "max_price": payload.max_price,
                 "category_code": payload.category_code,
@@ -182,7 +192,7 @@ class FakeFilterService:
                 "product_code": "FP0001", "name": "原味燕麦片", "brand": "谷物日记",
                 "category": "早餐麦片", "main_image_url": None, "sale_price": Decimal("32.90"),
                 "match_status": "MATCH", "reasons": ["满足当前条件"],
-                "contains_hits": [], "may_contain_hits": [],
+                "contains_hits": [], "may_contain_hits": [], "preference_hits": [],
             }],
         }
 

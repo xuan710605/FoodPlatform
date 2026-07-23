@@ -3,22 +3,24 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { EmptyState, InlineNotice, LoadingBlock, MatchBadge, Modal } from '../../components/common/UI'
 import { SafeImage } from '../../components/common/SafeImage'
-import { products } from '../../mock/data'
+import { getUserFoodPreferences, type UserFoodPreferences } from '../../services/preferences'
 import { useApp } from '../../store/AppStore'
 import { analyzeFilter, categoryLabels, productCodeOf, searchFilter, type FilterAnalyzeData } from '../../services/api'
-import type { MatchStatus } from '../../types'
+import type { MatchStatus, Product } from '../../types'
 
 type DemoState='normal'|'loading'|'empty'|'conflict'|'parse-error'|'timeout'|'degraded'
 type Condition={id:number;label:string;kind:'hard'|'soft'|'pending'}
 
 export function SmartFilterPage(){
   const location=useLocation(); const sourcePath=location.pathname+location.search;
-  const [params]=useSearchParams(); const [query,setQuery]=useState(params.get('q')||'帮我找不含花生及花生制品、50元以内的早餐麦片'); const [state,setState]=useState<DemoState>('normal'); const [active,setActive]=useState<MatchStatus|'全部'>('全部'); const [editing,setEditing]=useState<Condition|null>(null); const [basic,setBasic]=useState(false); const {addCart,toggleCompare,filterHistory,addFilterHistory,notify}=useApp()
-  const [conditions,setConditions]=useState<Condition[]>([{id:1,label:'早餐麦片',kind:'hard'},{id:2,label:'排除：花生',kind:'hard'},{id:3,label:'排除：花生粉',kind:'hard'},{id:4,label:'排除：花生酱',kind:'hard'},{id:5,label:'价格 ≤ ¥50',kind:'hard'},{id:6,label:'低糖',kind:'soft'},{id:7,label:'配料简单',kind:'soft'},{id:8,label:'匹配度优先',kind:'pending'}])
+  const [params]=useSearchParams(); const [query,setQuery]=useState(params.get('q')||''); const [state,setState]=useState<DemoState>('normal'); const [active,setActive]=useState<MatchStatus|'全部'>('全部'); const [editing,setEditing]=useState<Condition|null>(null); const [basic,setBasic]=useState(false); const {addCart,toggleCompare,filterHistory,addFilterHistory,notify,currentUser}=useApp()
+  const [conditions,setConditions]=useState<Condition[]>([])
   const [parsed,setParsed]=useState<FilterAnalyzeData|null>(null)
-  const [resultProducts,setResultProducts]=useState(products)
+  const [savedPreferences,setSavedPreferences]=useState<UserFoodPreferences>({exclude_ingredients:[],preferred_ingredients:[]})
+  useEffect(()=>{let active=true;if(!currentUser){setSavedPreferences({exclude_ingredients:[],preferred_ingredients:[]});return()=>{active=false}}getUserFoodPreferences().then(data=>{if(active)setSavedPreferences(data)}).catch(()=>{if(active)setSavedPreferences({exclude_ingredients:[],preferred_ingredients:[]})});return()=>{active=false}},[currentUser?.id])
+  const [resultProducts,setResultProducts]=useState<Product[]>([])
   useEffect(()=>{if(params.get('q'))setQuery(params.get('q')!)},[params])
-  const toConditions=(data:FilterAnalyzeData):Condition[]=>{let id=1;const next:Condition[]=[];if(data.category)next.push({id:id++,label:data.category,kind:'hard'});data.exclude_ingredients.forEach(name=>next.push({id:id++,label:`排除：${name}`,kind:'hard'}));data.exclude_categories.forEach(code=>next.push({id:id++,label:`排除分类：${categoryLabels[code]||code}`,kind:'hard'}));if(data.max_price!==null)next.push({id:id++,label:`价格 ≤ ¥${data.max_price}`,kind:'hard'});data.nutrition_targets.forEach(target=>next.push({id:id++,label:`${target.nutrient_name} ${target.operator==='LTE'?'≤':'≥'} ${target.value}${target.unit}`,kind:'soft'}));data.preferences.forEach(label=>next.push({id:id++,label,kind:'soft'}));if(!next.length)next.push({id:id++,label:'未识别出受支持的筛选条件',kind:'pending'});return next}
+  const toConditions=(data:FilterAnalyzeData):Condition[]=>{let id=1;const next:Condition[]=[];if(data.category)next.push({id:id++,label:data.category,kind:'hard'});data.exclude_ingredients.forEach(name=>next.push({id:id++,label:`排除：${name}`,kind:'hard'}));data.exclude_categories.forEach(code=>next.push({id:id++,label:`排除分类：${categoryLabels[code]||code}`,kind:'hard'}));if(data.max_price!==null)next.push({id:id++,label:`价格 ≤ ¥${data.max_price}`,kind:'hard'});data.nutrition_targets.forEach(target=>next.push({id:id++,label:`${target.nutrient_name} ${target.operator==='LTE'?'≤':'≥'} ${target.value}${target.unit}`,kind:'soft'}));data.preferences.forEach(label=>next.push({id:id++,label,kind:'soft'}));savedPreferences.exclude_ingredients.filter(name=>!data.exclude_ingredients.includes(name)).forEach(name=>next.push({id:id++,label:`账号排除：${name}`,kind:'hard'}));savedPreferences.preferred_ingredients.forEach(name=>next.push({id:id++,label:`账号偏好：${name}`,kind:'soft'}));if(!next.length)next.push({id:id++,label:'未识别出受支持的筛选条件',kind:'pending'});return next}
   const executeSearch=async(result:FilterAnalyzeData)=>{const search=await searchFilter(result);setResultProducts(search.items);if(!search.items.length)setState('empty');else setState(result.source==='api'&&search.source==='api'?'normal':'degraded');return search}
   const parseRequirements=async()=>{const text=query.trim();if(!text){notify('请输入筛选需求','error');return}setState('loading');const result=await analyzeFilter(text);setParsed(result);setConditions(toConditions(result));const search=await executeSearch(result);addFilterHistory({query:text,conditions:toConditions(result).map(item=>item.label),count:search.total});notify(result.source==='api'&&search.source==='api'?'需求解析与商品筛选完成':'API暂不可用，已使用本地筛选','info')}
   const run=()=>{if(parsed){setState('loading');void executeSearch(parsed).then(()=>notify('已按确认条件完成筛选'))}else void parseRequirements()}

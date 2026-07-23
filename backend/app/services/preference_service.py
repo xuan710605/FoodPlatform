@@ -16,6 +16,20 @@ class PreferenceService:
         except SQLAlchemyError as exc:
             raise AppError("MYSQL_UNAVAILABLE", "Preference database is unavailable", 503) from exc
 
+    def get_food_preferences(self, user_id: int) -> dict[str, list[str]]:
+        try:
+            return self.repository.get_food_preferences(user_id)
+        except SQLAlchemyError as exc:
+            raise AppError("MYSQL_UNAVAILABLE", "Preference database is unavailable", 503) from exc
+
+    def replace_food_preferences(self, user_id: int, payload: dict[str, list[str]]) -> dict[str, list[str]]:
+        excluded = list(dict.fromkeys(name.strip() for name in payload["exclude_ingredients"] if name.strip()))
+        preferred = list(dict.fromkeys(name.strip() for name in payload["preferred_ingredients"] if name.strip()))
+        preferred = [name for name in preferred if name not in excluded]
+        try:
+            return self.repository.replace_food_preferences(user_id, excluded, preferred)
+        except SQLAlchemyError as exc:
+            raise AppError("MYSQL_UNAVAILABLE", "Preference database is unavailable", 503) from exc
     def create_preference(self, user_id: int, payload: dict[str, Any]) -> dict[str, Any]:
         try:
             return self.repository.create(user_id, payload)

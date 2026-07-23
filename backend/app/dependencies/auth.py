@@ -16,6 +16,16 @@ def get_current_user(request: Request, token: str | None = Depends(oauth2_scheme
     return UserIdentity.model_validate(user)
 
 
+
+def get_optional_current_user(
+    request: Request,
+    token: str | None = Depends(oauth2_scheme),
+) -> UserIdentity | None:
+    if not token:
+        return None
+    user = request.app.state.auth_service.authenticate_token(token)
+    return UserIdentity.model_validate(user)
+
 def require_role(*allowed_roles: str) -> Callable[[UserIdentity], UserIdentity]:
     allowed = set(allowed_roles)
 

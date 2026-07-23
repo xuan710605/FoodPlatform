@@ -54,7 +54,8 @@ async def lifespan(app: FastAPI):
     app.state.auth_service = AuthService(user_repository, settings)
     address_repository = AddressRepository(session_factory)
     app.state.address_service = AddressService(address_repository)
-    app.state.preference_service = PreferenceService(PreferenceRepository(session_factory))
+    preference_repository = PreferenceRepository(session_factory)
+    app.state.preference_service = PreferenceService(preference_repository)
     app.state.catalog_service = CatalogService(CatalogRepository(session_factory))
     commerce_repository = CommerceRepository(session_factory)
     app.state.cart_service = CartService(commerce_repository)
@@ -68,6 +69,7 @@ async def lifespan(app: FastAPI):
         product_repository,
         FilterGraphRepository(driver, settings.neo4j_database),
         ControlledFilterAnalyzer(),
+        preference_repository,
     )
     try:
         yield

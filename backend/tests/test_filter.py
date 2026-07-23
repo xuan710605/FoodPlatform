@@ -25,9 +25,9 @@ class ProductRepositoryStub:
             ],
             "ingredient_version":1,
         }
-        if code == "FP0017": return common|{"contains":[{"entity_code":"ING004"}],"may_contain":[]}
-        if code == "FP0002": return common|{"contains":[],"may_contain":[{"entity_code":"ING002"}]}
-        return common|{"contains":[],"may_contain":[]}
+        if code == "FP0017": return common|{"contains":[{"entity_code":"ING004","name":"花生酱"}],"may_contain":[]}
+        if code == "FP0002": return common|{"contains":[],"may_contain":[{"entity_code":"ING002","name":"花生"}]}
+        return common|{"contains":[{"entity_code":"ING001","name":"燕麦"}] if code == "FP0001" else [],"may_contain":[]}
 
 
 class GraphRepositoryStub:
@@ -107,3 +107,30 @@ def test_high_protein_milk_is_positive_dairy_query(client):
 def test_excluded_category_is_removed_from_search_results():
     result = filter_service().search(FilterSearchRequest(exclude_categories=["CAT003"]))
     assert "FP0004" not in {item["product_code"] for item in result["items"]}
+
+class PreferenceRepositoryStub:
+    def get_food_preferences(self, user_id):
+        if user_id == 1:
+            return {"exclude_ingredients": ["花生"], "preferred_ingredients": ["燕麦"]}
+        return {"exclude_ingredients": [], "preferred_ingredients": []}
+
+
+def test_saved_exclusions_are_isolated_and_raise_peanut_risk():
+    service = FilterService(ProductRepositoryStub(), GraphRepositoryStub(), ControlledFilterAnalyzer(), PreferenceRepositoryStub())
+    user_a = service.search(FilterSearchRequest(text="早餐麦片"), user_id=1)
+    user_b = service.search(FilterSearchRequest(text="早餐麦片"), user_id=2)
+    statuses_a = {item["product_code"]: item["match_status"] for item in user_a["items"]}
+    statuses_b = {item["product_code"]: item["match_status"] for item in user_b["items"]}
+    assert statuses_a["FP0017"] == "NOT_MATCH"
+    assert statuses_a["FP0002"] == "RISK"
+    assert statuses_b["FP0017"] == "MATCH"
+    assert user_a["conditions"].exclude_ingredients == ["花生"]
+    assert user_b["conditions"].exclude_ingredients == []
+
+
+def test_saved_preferred_ingredient_affects_order_without_overriding_manual_conditions():
+    service = FilterService(ProductRepositoryStub(), GraphRepositoryStub(), ControlledFilterAnalyzer(), PreferenceRepositoryStub())
+    result = service.search(FilterSearchRequest(text="早餐麦片", exclude_ingredients=["芝麻"]), user_id=1)
+    assert result["conditions"].exclude_ingredients == ["芝麻", "花生"]
+    assert result["items"][0]["product_code"] == "FP0001"
+    assert result["items"][0]["preference_hits"] == ["燕麦"]

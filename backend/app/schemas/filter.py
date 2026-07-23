@@ -20,6 +20,7 @@ class FilterAnalyzeRequest(BaseModel):
 class FilterConditions(BaseModel):
     exclude_ingredients: list[str] = Field(default_factory=list, max_length=20)
     exclude_categories: list[str] = Field(default_factory=list, max_length=10)
+    preferred_ingredients: list[str] = Field(default_factory=list, max_length=20)
     nutrition_targets: list[NutritionTarget] = Field(default_factory=list, max_length=10)
     max_price: Decimal | None = Field(default=None, ge=0)
     category_code: str | None = Field(default=None, max_length=32)
@@ -60,6 +61,7 @@ class FilterProductItem(BaseModel):
     reasons: list[str]
     contains_hits: list[str]
     may_contain_hits: list[str]
+    preference_hits: list[str]
 
 
 class FilterSearchResult(BaseModel):
