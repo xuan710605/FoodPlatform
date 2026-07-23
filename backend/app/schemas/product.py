@@ -101,6 +101,14 @@ class ProductDetail(MoneyModel):
     nutrition: list[NutritionItem]
     contains: list[IngredientSummary]
     may_contain: list[IngredientSummary]
+    unknown: list[IngredientSummary]
+    sales_quantity: int
+    average_rating: Decimal | None
+    review_count: int
+    match_status: str
+    match_reason: str | None
+    evidence_text: str | None
+    info_source: str | None
     audit_status: str
     sale_status: str
     created_at: datetime

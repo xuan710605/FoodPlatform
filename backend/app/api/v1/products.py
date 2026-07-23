@@ -57,7 +57,7 @@ def product_categories(request: Request) -> dict:
     "/{product_code}",
     response_model=SuccessResponse[ProductDetail],
     summary="Get product detail",
-    description="Returns MySQL product facts, raw ingredients, approved structured ingredients, specifications, prices and nutrition.",
+    description="Returns MySQL product facts, sales and review aggregates, evidence, approved structured ingredients, specifications, prices and nutrition.",
 )
 def get_product(
     request: Request,

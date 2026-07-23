@@ -28,4 +28,12 @@ def test_product_detail_structure_and_decimal(client):
     data = response.json()["data"]
     assert data["raw_ingredient_text"] == "燕麦"
     assert data["contains"][0]["relation_type"] == "CONTAINS"
+    assert data["unknown"][0]["relation_type"] == "UNKNOWN"
+    assert data["sales_quantity"] == 12
+    assert data["average_rating"] == "4.50"
+    assert data["review_count"] == 2
+    assert data["match_status"] == "FULL_MATCH"
+    assert data["evidence_text"]
+    assert data["nutrition"][0]["unit"] == "g"
+    assert data["nutrition"][0]["basis"] == "PER_100G"
     assert data["specs"][0]["sale_price"] == "32.90"

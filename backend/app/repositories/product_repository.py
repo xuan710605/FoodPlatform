@@ -60,6 +60,15 @@ class ProductRepository:
                 SELECT p.id,p.product_code,p.product_name AS name,p.subtitle,p.description,
                   b.brand_name AS brand,b.brand_code,c.category_name AS category,c.category_code,
                   m.merchant_code,m.merchant_name,p.raw_ingredient_text,p.allergen_notice,
+                  p.match_status,p.match_reason,p.evidence_text,p.info_source,
+                  (SELECT COALESCE(SUM(oi.quantity),0)
+                   FROM order_item oi JOIN order_info o ON o.id=oi.order_id
+                   WHERE oi.product_id=p.id
+                     AND o.order_status NOT IN ('CANCELLED','PENDING_PAYMENT')) AS sales_quantity,
+                  (SELECT AVG(pr.rating) FROM product_review pr
+                   WHERE pr.product_id=p.id AND pr.status='PUBLISHED') AS average_rating,
+                  (SELECT COUNT(*) FROM product_review pr
+                   WHERE pr.product_id=p.id AND pr.status='PUBLISHED') AS review_count,
                   (SELECT MAX(x.version_no) FROM product_ingredient_snapshot x
                    WHERE x.product_id=p.id AND x.effective_to IS NULL) AS ingredient_version,
                   p.graph_sync_status,p.review_status AS audit_status,p.sale_status,p.created_at,p.updated_at
@@ -92,14 +101,15 @@ class ProductRepository:
                 SELECT entity_code,normalized_name AS name,entity_type,relation_type,confidence,source_code,audit_status
                 FROM product_ingredient_snapshot WHERE product_id=:id AND effective_to IS NULL
                   AND version_no=(SELECT MAX(v.version_no) FROM product_ingredient_snapshot v WHERE v.product_id=:id AND v.effective_to IS NULL)
-                  AND audit_status='APPROVED' AND relation_type IN ('CONTAINS','MAY_CONTAIN')
+                  AND audit_status='APPROVED' AND relation_type IN ('CONTAINS','MAY_CONTAIN','UNKNOWN')
                 ORDER BY relation_type,entity_code
             """, product_id)
             result = dict(base)
             result["merchant"] = {"merchant_code": result.pop("merchant_code"), "name": result.pop("merchant_name")}
             result.update(specs=specs, images=images, nutrition=nutrition,
                           contains=[x for x in ingredients if x["relation_type"] == "CONTAINS"],
-                          may_contain=[x for x in ingredients if x["relation_type"] == "MAY_CONTAIN"])
+                          may_contain=[x for x in ingredients if x["relation_type"] == "MAY_CONTAIN"],
+                          unknown=[x for x in ingredients if x["relation_type"] == "UNKNOWN"])
             return result
 
     @staticmethod

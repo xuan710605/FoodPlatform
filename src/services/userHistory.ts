@@ -1,4 +1,10 @@
-import type { Product } from '../types'
+export interface BrowseProductInput {
+  id: number
+  productCode?: string
+  name: string
+  brand: string
+  image: string
+}
 
 export interface BrowsingHistoryEntry {
   productId: number
@@ -31,7 +37,7 @@ function readJson<T>(key: string, fallback: T): T {
 export const getBrowseHistory = (userId: number) =>
   readJson<BrowsingHistoryEntry[]>(browsingKey(userId), [])
 
-export function saveBrowseHistory(userId: number, product: Product) {
+export function saveBrowseHistory(userId: number, product: BrowseProductInput) {
   const entry: BrowsingHistoryEntry = {
     productId: product.id,
     productCode: product.productCode || `FP${String(product.id).padStart(4, '0')}`,

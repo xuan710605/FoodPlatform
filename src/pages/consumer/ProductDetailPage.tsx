@@ -1,11 +1,112 @@
-import { ArrowLeft, ChevronRight, GitFork, Heart, Minus, Plus, ShieldCheck, ShoppingBag, Star, Store } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { ArrowLeft, ChevronRight, GitFork, Heart, Minus, Plus, RefreshCw, ShieldCheck, ShoppingBag, Star, Store } from 'lucide-react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { InlineNotice, MatchBadge, Modal } from '../../components/common/UI'
 import { SafeImage } from '../../components/common/SafeImage'
-import { products, reviews } from '../../mock/data'
 import { useApp } from '../../store/AppStore'
-import { getProductDetail, productCodeOf, resolveProductCode } from '../../services/api'
-import type { Product } from '../../types'
+import { getProductDetail, resolveProductCode, type ApiProductDetail, type ApiProductIngredient } from '../../services/api'
+import type { MatchStatus } from '../../types'
 
-export function ProductDetailPage(){const {id}=useParams();const location=useLocation();const navigate=useNavigate();const code=resolveProductCode(id);const initial=products.find(p=>p.id===Number(code.slice(2)))||products[0];const [product,setProduct]=useState<Product>({...initial,productCode:code});const [qty,setQty]=useState(1);const [tab,setTab]=useState('ingredients');const [ingredient,setIngredient]=useState<string|null>(null);const [main,setMain]=useState(initial.image);const {addCart,toggleFavorite,toggleCompare,trackProductView,favorites,loggedIn,currentUser,notify}=useApp();useEffect(()=>{let active=true;getProductDetail(id).then(({product:next})=>{if(active){setProduct(next);setMain(next.image)}});return()=>{active=false}},[id]);useEffect(()=>{if(currentUser)trackProductView(product)},[currentUser?.id,product.productCode]);const gallery=product.gallery?.length?product.gallery:[product.image];const routeState=location.state as {from?:unknown}|null;const sourcePath=typeof routeState?.from==='string'&&!routeState.from.startsWith('/graph/')?routeState.from:'/products';const goBack=()=>navigate(sourcePath,{replace:true});const addToCart=async()=>{await addCart(product.id,qty)};return <div className="page"><div className="container"><button className="btn ghost" style={{marginBottom:12}} onClick={goBack}><ArrowLeft size={17}/>{sourcePath==='/products'?'返回商品列表':'返回来源页'}</button><div className="breadcrumbs"><Link to="/">首页</Link><span>/</span><Link to="/products">{product.category}</Link><span>/</span><span>{product.name}</span></div><div className="detail-grid"><section className="gallery"><div className="gallery-thumbs">{gallery.map((x,i)=><button key={x} className={main===x?'active':''} onClick={()=>setMain(x)}><SafeImage src={x} alt={`${product.name}图片${i+1}`}/></button>)}</div><div className="gallery-main"><SafeImage src={main} alt={product.name}/></div></section><section className="detail-info"><div className="detail-meta"><span>{product.brand}</span><span>{product.category}</span><span><Star size={13} fill="currentColor"/> {product.rating}</span></div><h1>{product.name}</h1><p>{product.reason}。商品信息已通过平台审核，可查看原始标签与图谱证据。</p><div className="detail-price"><strong>¥{product.price}</strong>{product.originalPrice&&<del>¥{product.originalPrice}</del>}<small>已售 {product.sales} 件</small></div><div className="match-summary soft-card"><MatchBadge status={product.status}/><p><ShieldCheck size={15}/> 当前偏好：排除花生及其制品 · 低糖优先 · 配料简单。{product.evidence}</p></div><div className="spec-row"><span>规格</span><button className="spec-button">{product.spec}</button></div><div className="spec-row"><span>库存</span><span className="muted">现货 {product.stock} 件</span></div><div className="spec-row"><span>数量</span><div className="quantity"><button onClick={()=>setQty(Math.max(1,qty-1))}><Minus size={14}/></button><input value={qty} readOnly/><button onClick={()=>setQty(qty+1)}><Plus size={14}/></button></div></div><div className="buy-actions"><button className="btn secondary large" onClick={async()=>{if(!loggedIn){navigate('/login');return}await addToCart();navigate('/cart')}}>立即购买</button><button className="btn primary large" onClick={addToCart}><ShoppingBag/>加入购物车</button><button className={`btn ghost large ${favorites.includes(product.id)?'selected':''}`} onClick={()=>toggleFavorite(product.id)}><Heart/></button><button className="btn ghost large" onClick={()=>toggleCompare(product.id)}>加入对比</button></div><div className="seller-card card"><span><b><Store size={16}/> {product.merchant}</b><small>平台认证商家 · 近30日履约率 98.7%</small></span><button className="btn ghost" onClick={()=>notify('已打开模拟店铺','info')}>进入店铺</button></div></section></div><div className="detail-tabs">{[['ingredients','成分与配料'],['nutrition','营养成分'],['source','信息来源'],['reviews','用户评价']].map(([k,l])=><button key={k} className={tab===k?'active':''} onClick={()=>setTab(k)}>{l}</button>)}</div><div className="detail-content">{tab==='ingredients'&&<><section className="detail-section card"><h3>用户偏好匹配摘要</h3><InlineNotice tone={product.status==='完全匹配'?'success':product.status==='不匹配'?'danger':'warning'} title={product.status}>{product.reason}。状态由确定性规则生成，Qwen 仅将证据转述为自然语言。</InlineNotice></section><section className="detail-section card"><h3>原始配料表</h3><p className="raw-label">{product.ingredients.join('、')}{product.additives.length?`；食品添加剂：${product.additives.join('、')}`:''}{product.mayContain.length?`。可能含有：${product.mayContain.join('、')}`:''}</p><p className="muted" style={{fontSize:12}}>以下结构化标签保留与原始文本的对应关系，点击任意成分可查看知识详情。</p><div className="ingredient-zones"><div className="ingredient-zone"><h4>主要配料</h4>{product.ingredients.map(x=><button onClick={()=>setIngredient(x)} key={x}>{x}</button>)}</div><div className="ingredient-zone"><h4>食品添加剂</h4>{product.additives.length?product.additives.map(x=><button onClick={()=>setIngredient(x)} key={x}>{x}</button>):<span className="muted">未标注</span>}</div><div className="ingredient-zone"><h4>可能含有</h4>{product.mayContain.length?product.mayContain.map(x=><button onClick={()=>setIngredient(x)} key={x}>{x}</button>):<span className="muted">无相关提示</span>}</div><div className="ingredient-zone"><h4>未识别成分</h4>{product.unknown.length?product.unknown.map(x=><button onClick={()=>setIngredient(x)} key={x}>{x}</button>):<span className="muted">无</span>}</div></div><div className="divider"/><button className="btn outline" onClick={()=>notify('成分纠错工单已创建','info')}>发现信息不准确？提交成分纠错</button></section></>}{tab==='nutrition'&&<section className="detail-section card"><h3>营养成分表</h3><p>数值基准：每 100g / 100mL；缺失值会显示“暂无数据”，不会强制推算。</p><table className="nutrition-table"><thead><tr><th>营养项目</th><th>数值</th><th>筛选参考</th></tr></thead><tbody>{[['能量',product.nutrition.energy,'kJ'],['蛋白质',product.nutrition.protein,'g'],['脂肪',product.nutrition.fat,'g'],['糖',product.nutrition.sugar,'g'],['钠',product.nutrition.sodium,'mg']].map(([n,v,u])=><tr key={String(n)}><td>{n}</td><td>{v===null?'暂无数据':`${v}${u}`}</td><td>{n==='糖'&&Number(v)<=5?'符合低糖偏好':'—'}</td></tr>)}</tbody></table></section>}{tab==='source'&&<section className="detail-section card"><h3>信息来源与审核状态</h3><div className="form-grid"><div><span className="muted">来源</span><p>{product.source}</p></div><div><span className="muted">审核状态</span><p><span className="status-pill success">{product.reviewStatus}</span></p></div><div><span className="muted">最近更新时间</span><p>{product.updatedAt}</p></div><div><span className="muted">证据完整度</span><p>92% · 原始标签与结构化条目一致</p></div></div><Link className="btn primary" to={`/graph/${productCodeOf(product)}`}><GitFork/>查看完整图谱追溯</Link></section>}{tab==='reviews'&&<section className="detail-section card"><h3>用户评价 · {reviews.length}</h3>{reviews.map(([name,score,text],i)=><div className="review-item" key={i}><div className="avatar">{String(name).slice(0,1)}</div><div><b>{name}</b><p>{text}</p></div><span className="stars">{'★'.repeat(Number(score))}</span></div>)}</section>}</div><Modal open={!!ingredient} title={`${ingredient} · 成分知识`} onClose={()=>setIngredient(null)} footer={<><button className="btn ghost" onClick={()=>setIngredient(null)}>关闭</button><Link className="btn primary" to={`/graph/${productCodeOf(product)}`}>在图谱中查看 <ChevronRight size={15}/></Link></>}><div className="node-detail"><small>标准名称</small><h3>{ingredient}</h3><p>来源于当前商品包装标签，已映射到平台标准成分实体。常见别名、衍生关系和关联商品可在图谱中追溯。</p><div className="tag-row"><span>人工复核</span><span>来源可追溯</span><span>实体版本 v2.18</span></div></div></Modal></div></div>}
+const statusMap: Record<string, MatchStatus> = {
+  FULL_MATCH: '完全匹配',
+  RISK: '存在风险',
+  NOT_MATCH: '不匹配',
+  INFORMATION_INSUFFICIENT: '信息不足',
+}
+const auditLabels: Record<string, string> = { APPROVED: '已通过', PENDING: '待审核', REJECTED: '已驳回', NEED_MORE_INFO: '需补充' }
+const basisLabels: Record<string, string> = { PER_100G: '每100g', PER_100ML: '每100mL', PER_SERVING: '每份' }
+const valueOrEmpty = (value: string | null, suffix = '') => value === null ? '暂无数据' : `${value}${suffix}`
+
+export function ProductDetailPage() {
+  const { id } = useParams()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const code = resolveProductCode(id)
+  const [product, setProduct] = useState<ApiProductDetail | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
+  const [qty, setQty] = useState(1)
+  const [tab, setTab] = useState('ingredients')
+  const [ingredient, setIngredient] = useState<ApiProductIngredient | null>(null)
+  const [main, setMain] = useState('')
+  const { addCart, toggleFavorite, toggleCompare, trackProductView, favorites, loggedIn, currentUser } = useApp()
+
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    setError(null)
+    setProduct(null)
+    getProductDetail(code)
+      .then(next => {
+        if (!active) return
+        setProduct(next)
+        setMain(next.images.find(image => image.image_type === 'MAIN')?.image_url || next.images[0]?.image_url || '')
+      })
+      .catch(reason => {
+        if (!active) return
+        setError(reason instanceof Error ? reason.message : '商品详情加载失败')
+      })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [code, reloadKey])
+
+  useEffect(() => {
+    if (!currentUser || !product) return
+    trackProductView({
+      id: product.id,
+      productCode: product.product_code,
+      name: product.name,
+      brand: product.brand,
+      image: product.images.find(image => image.image_type === 'MAIN')?.image_url || product.images[0]?.image_url || '',
+    })
+  }, [currentUser?.id, product?.product_code])
+
+  const defaultSpec = useMemo(() => product?.specs.find(spec => spec.is_default) || product?.specs[0], [product])
+  const gallery = product?.images.map(image => image.image_url).filter(Boolean) || []
+  const ingredients = product?.contains.filter(item => item.entity_type !== 'ADDITIVE') || []
+  const additives = product?.contains.filter(item => item.entity_type === 'ADDITIVE') || []
+  const routeState = location.state as { from?: unknown } | null
+  const sourcePath = typeof routeState?.from === 'string' && !routeState.from.startsWith('/graph/') ? routeState.from : '/products'
+  const goBack = () => navigate(sourcePath, { replace: true })
+
+  if (loading) return <div className="page"><div className="container"><div className="card empty-state"><h3>正在加载商品详情</h3><p>正在读取数据库中的商品、成分和营养信息。</p></div></div></div>
+  if (error || !product) return <div className="page"><div className="container"><button className="btn ghost" onClick={goBack}><ArrowLeft size={17}/>返回商品列表</button><div className="card empty-state"><h3>商品详情加载失败</h3><p>{error || '未获取到商品数据'}</p><button className="btn primary" onClick={() => setReloadKey(value => value + 1)}><RefreshCw size={16}/>重新加载</button></div></div></div>
+
+  const matchStatus = statusMap[product.match_status] || '信息不足'
+  const addToCart = async () => { await addCart(product.id, qty) }
+  return <div className="page"><div className="container">
+    <button className="btn ghost" style={{ marginBottom: 12 }} onClick={goBack}><ArrowLeft size={17}/>{sourcePath === '/products' ? '返回商品列表' : '返回来源页'}</button>
+    <div className="breadcrumbs"><Link to="/">首页</Link><span>/</span><Link to="/products">{product.category}</Link><span>/</span><span>{product.name}</span></div>
+    <div className="detail-grid">
+      <section className="gallery">
+        <div className="gallery-thumbs">{gallery.map((image, index) => <button key={`${image}-${index}`} className={main === image ? 'active' : ''} onClick={() => setMain(image)}><SafeImage src={image} alt={`${product.name}图片${index + 1}`}/></button>)}</div>
+        <div className="gallery-main"><SafeImage src={main} alt={product.name}/></div>
+      </section>
+      <section className="detail-info">
+        <div className="detail-meta"><span>{product.brand}</span><span>{product.category}</span><span><Star size={13} fill="currentColor"/> {product.average_rating === null ? '暂无评分' : product.average_rating}</span></div>
+        <h1>{product.name}</h1>
+        <p>{product.subtitle || product.description || '暂无商品介绍'}</p>
+        <div className="detail-price"><strong>{defaultSpec?.sale_price === null || !defaultSpec ? '暂无价格' : `¥${defaultSpec.sale_price}`}</strong>{defaultSpec?.market_price && <del>¥{defaultSpec.market_price}</del>}<small>已售 {product.sales_quantity} 件</small></div>
+        <div className="match-summary soft-card"><MatchBadge status={matchStatus}/><p><ShieldCheck size={15}/>{product.match_reason || '暂无匹配说明'}{product.evidence_text ? `。${product.evidence_text}` : ''}</p></div>
+        <div className="spec-row"><span>规格</span><button className="spec-button">{defaultSpec?.spec_name || '暂无规格'}</button></div>
+        <div className="spec-row"><span>库存</span><span className="muted">{defaultSpec?.stock_quantity === null || !defaultSpec ? '暂无数据' : `现货 ${defaultSpec.stock_quantity} 件`}</span></div>
+        <div className="spec-row"><span>数量</span><div className="quantity"><button onClick={() => setQty(Math.max(1, qty - 1))}><Minus size={14}/></button><input value={qty} readOnly/><button onClick={() => setQty(qty + 1)}><Plus size={14}/></button></div></div>
+        <div className="buy-actions"><button className="btn secondary large" onClick={async () => { if (!loggedIn) { navigate('/login'); return } await addToCart(); navigate('/cart') }}>立即购买</button><button className="btn primary large" onClick={addToCart}><ShoppingBag/>加入购物车</button><button className={`btn ghost large ${favorites.includes(product.id) ? 'selected' : ''}`} onClick={() => toggleFavorite(product.id)}><Heart/></button><button className="btn ghost large" onClick={() => toggleCompare(product.id)}>加入对比</button></div>
+        <div className="seller-card card"><span><b><Store size={16}/> {product.merchant.name}</b><small>商家编码：{product.merchant.merchant_code}</small></span></div>
+      </section>
+    </div>
+    <div className="detail-tabs">{[['ingredients', '成分与配料'], ['nutrition', '营养成分'], ['source', '信息来源'], ['reviews', '用户评价']].map(([key, label]) => <button key={key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{label}</button>)}</div>
+    <div className="detail-content">
+      {tab === 'ingredients' && <><section className="detail-section card"><h3>商品匹配摘要</h3><InlineNotice tone={matchStatus === '完全匹配' ? 'success' : matchStatus === '不匹配' ? 'danger' : 'warning'} title={matchStatus}>{product.match_reason || '暂无匹配说明'}</InlineNotice></section><section className="detail-section card"><h3>原始配料表</h3><p className="raw-label">{product.raw_ingredient_text || '暂无数据'}</p>{product.allergen_notice && <p className="muted">过敏原提示：{product.allergen_notice}</p>}<div className="ingredient-zones"><IngredientZone title="主要配料" items={ingredients} onSelect={setIngredient}/><IngredientZone title="食品添加剂" items={additives} onSelect={setIngredient}/><IngredientZone title="可能含有" items={product.may_contain} onSelect={setIngredient}/><IngredientZone title="未识别成分" items={product.unknown} onSelect={setIngredient}/></div></section></>}
+      {tab === 'nutrition' && <section className="detail-section card"><h3>营养成分表</h3>{product.nutrition.length === 0 ? <p className="muted">暂无数据</p> : <table className="nutrition-table"><thead><tr><th>营养项目</th><th>数值</th><th>计量基准</th></tr></thead><tbody>{product.nutrition.map(item => <tr key={`${item.nutrient_code}-${item.basis}`}><td>{item.nutrient_name}</td><td>{valueOrEmpty(item.value, item.unit)}</td><td>{basisLabels[item.basis] || item.basis}{item.basis_quantity ? `（${item.basis_quantity}${item.unit}）` : ''}</td></tr>)}</tbody></table>}</section>}
+      {tab === 'source' && <section className="detail-section card"><h3>信息来源与审核状态</h3><div className="form-grid"><div><span className="muted">来源</span><p>{product.info_source || '暂无数据'}</p></div><div><span className="muted">审核状态</span><p><span className="status-pill success">{auditLabels[product.audit_status] || product.audit_status}</span></p></div><div><span className="muted">最近更新时间</span><p>{new Date(product.updated_at).toLocaleString('zh-CN')}</p></div><div><span className="muted">成分版本</span><p>{product.ingredient_version === null ? '暂无数据' : `v${product.ingredient_version}`}</p></div></div><Link className="btn primary" to={`/graph/${product.product_code}`}><GitFork/>查看完整图谱追溯</Link></section>}
+      {tab === 'reviews' && <section className="detail-section card"><h3>用户评价 · {product.review_count}</h3><p>平均评分：{product.average_rating === null ? '暂无数据' : `${product.average_rating} / 5`}</p><p className="muted">当前接口仅提供数据库评价统计，评价明细暂未开放。</p></section>}
+    </div>
+    <Modal open={!!ingredient} title={`${ingredient?.name || ''} · 成分信息`} onClose={() => setIngredient(null)} footer={<><button className="btn ghost" onClick={() => setIngredient(null)}>关闭</button><Link className="btn primary" to={`/graph/${product.product_code}`}>在图谱中查看 <ChevronRight size={15}/></Link></>}><div className="node-detail"><small>标准名称</small><h3>{ingredient?.name}</h3><p>业务编码：{ingredient?.entity_code || '暂无数据'}</p><div className="tag-row"><span>{ingredient?.audit_status || '暂无审核状态'}</span><span>来源：{ingredient?.source_code || '暂无数据'}</span><span>置信度：{ingredient?.confidence ?? '暂无数据'}</span></div></div></Modal>
+  </div></div>
+}
+
+function IngredientZone({ title, items, onSelect }: { title: string; items: ApiProductIngredient[]; onSelect: (item: ApiProductIngredient) => void }) {
+  return <div className="ingredient-zone"><h4>{title}</h4>{items.length ? items.map(item => <button onClick={() => onSelect(item)} key={`${item.relation_type}-${item.entity_code}`}>{item.name}</button>) : <span className="muted">暂无数据</span>}</div>
+}

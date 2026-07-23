@@ -2,11 +2,10 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { getCurrentUser, type CurrentUser } from '../services/account'
 import { addFavorite, deleteFavorite, listFavorites, type ApiFavorite } from '../services/favorites'
 import { addCartItem, deleteCartItem, getCart, updateCartItem, type ApiCartItem } from '../services/commerce'
-import { getBrowseHistory, getFilterHistory, saveBrowseHistory, saveFilterHistory, writeFilterHistory, type BrowsingHistoryEntry, type FilterHistoryEntry } from '../services/userHistory'
-import type { Product } from '../types'
+import { getBrowseHistory, getFilterHistory, saveBrowseHistory, saveFilterHistory, writeFilterHistory, type BrowseProductInput, type BrowsingHistoryEntry, type FilterHistoryEntry } from '../services/userHistory'
 
 type Toast={id:number;message:string;tone:'success'|'error'|'info'}
-interface AppState{cart:ApiCartItem[];favorites:number[];favoriteItems:ApiFavorite[];browsingHistory:BrowsingHistoryEntry[];filterHistory:FilterHistoryEntry[];compare:number[];loggedIn:boolean;currentUser:CurrentUser|null;userLoading:boolean;toasts:Toast[];refreshUser:()=>Promise<void>;refreshCart:()=>Promise<void>;refreshFavorites:()=>Promise<void>;addCart:(id:number,quantity?:number)=>Promise<void>;updateCart:(itemId:number,quantity:number)=>Promise<void>;removeCart:(itemId:number)=>Promise<void>;toggleFavorite:(id:number)=>Promise<void>;trackProductView:(product:Product)=>void;addFilterHistory:(entry:Omit<FilterHistoryEntry,'id'|'time'>)=>void;replaceFilterHistory:(items:FilterHistoryEntry[])=>void;toggleCompare:(id:number)=>void;login:(user:CurrentUser)=>void;logout:()=>void;notify:(message:string,tone?:Toast['tone'])=>void}
+interface AppState{cart:ApiCartItem[];favorites:number[];favoriteItems:ApiFavorite[];browsingHistory:BrowsingHistoryEntry[];filterHistory:FilterHistoryEntry[];compare:number[];loggedIn:boolean;currentUser:CurrentUser|null;userLoading:boolean;toasts:Toast[];refreshUser:()=>Promise<void>;refreshCart:()=>Promise<void>;refreshFavorites:()=>Promise<void>;addCart:(id:number,quantity?:number)=>Promise<void>;updateCart:(itemId:number,quantity:number)=>Promise<void>;removeCart:(itemId:number)=>Promise<void>;toggleFavorite:(id:number)=>Promise<void>;trackProductView:(product:BrowseProductInput)=>void;addFilterHistory:(entry:Omit<FilterHistoryEntry,'id'|'time'>)=>void;replaceFilterHistory:(items:FilterHistoryEntry[])=>void;toggleCompare:(id:number)=>void;login:(user:CurrentUser)=>void;logout:()=>void;notify:(message:string,tone?:Toast['tone'])=>void}
 const Context=createContext<AppState|null>(null)
 const requireLogin=()=>{window.location.assign('/login')}
 export function AppProvider({children}:{children:ReactNode}){
@@ -23,7 +22,7 @@ export function AppProvider({children}:{children:ReactNode}){
  const updateCart=async(itemId:number,quantity:number)=>{if(!currentUser)return requireLogin();try{await updateCartItem(itemId,quantity);await refreshCart()}catch(error){notify(error instanceof Error?error.message:'更新购物车失败','error')}}
  const removeCart=async(itemId:number)=>{if(!currentUser)return requireLogin();try{await deleteCartItem(itemId);await refreshCart();notify('商品已移除','info')}catch(error){notify(error instanceof Error?error.message:'删除失败','error')}}
  const toggleFavorite=async(id:number)=>{if(!currentUser)return requireLogin();const code=`FP${String(id).padStart(4,'0')}`;try{if(favorites.includes(id))await deleteFavorite(code);else await addFavorite(code);await refreshFavorites();notify(favorites.includes(id)?'已取消收藏':'已加入收藏','info')}catch(error){notify(error instanceof Error?error.message:'收藏操作失败','error')}}
- const trackProductView=(product:Product)=>{if(currentUser)setBrowsingHistory(saveBrowseHistory(currentUser.id,product))}
+ const trackProductView=(product:BrowseProductInput)=>{if(currentUser)setBrowsingHistory(saveBrowseHistory(currentUser.id,product))}
  const addFilterHistory=(entry:Omit<FilterHistoryEntry,'id'|'time'>)=>{if(currentUser)setFilterHistory(saveFilterHistory(currentUser.id,entry))}
  const replaceFilterHistory=(items:FilterHistoryEntry[])=>{if(!currentUser)return;writeFilterHistory(currentUser.id,items);setFilterHistory(items)}
  const toggleCompare=(id:number)=>{if(!compare.includes(id)&&compare.length>=4)return notify('最多同时对比 4 件商品','error');setCompare(v=>v.includes(id)?v.filter(x=>x!==id):[...v,id]);notify(compare.includes(id)?'已移出对比':'已加入对比','info')}
