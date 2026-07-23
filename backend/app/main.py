@@ -14,12 +14,15 @@ from app.core.logging import configure_logging, request_id_context
 from app.db.mysql import create_mysql_engine, create_session_factory
 from app.db.neo4j import create_neo4j_driver
 from app.repositories.catalog_repository import CatalogRepository
+from app.repositories.commerce_repository import CommerceRepository
 from app.repositories.filter_repository import FilterGraphRepository
 from app.repositories.graph_repository import GraphRepository
 from app.repositories.preference_repository import PreferenceRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.product_repository import ProductRepository
 from app.services.auth_service import AuthService
+from app.services.cart_service import CartService
+from app.services.order_service import OrderService
 from app.services.catalog_service import CatalogService
 from app.services.filter_rules import ControlledFilterAnalyzer
 from app.services.filter_service import FilterService
@@ -47,6 +50,9 @@ async def lifespan(app: FastAPI):
     app.state.auth_service = AuthService(user_repository, settings)
     app.state.preference_service = PreferenceService(PreferenceRepository(session_factory))
     app.state.catalog_service = CatalogService(CatalogRepository(session_factory))
+    commerce_repository = CommerceRepository(session_factory)
+    app.state.cart_service = CartService(commerce_repository)
+    app.state.order_service = OrderService(commerce_repository)
     app.state.graph_service = GraphService(
         product_repository,
         GraphRepository(driver, settings.neo4j_database),
@@ -82,7 +88,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Accept", "Authorization", "Content-Type", "X-Request-ID"],
 )
 install_exception_handlers(app)

@@ -5,11 +5,13 @@ import type { Product } from '../../types'
 import { MatchBadge } from '../common/UI'
 import { SafeImage } from '../common/SafeImage'
 import { productCodeOf } from '../../services/api'
+import { addCartItem } from '../../services/commerce'
 
 export function ProductCard({ product, compact = false }: { product: Product; compact?: boolean }) {
   const { addCart, toggleFavorite, toggleCompare, favorites, compare } = useApp()
   const location = useLocation()
   const sourcePath = `${location.pathname}${location.search}`
+  const add = async () => { try { await addCartItem(productCodeOf(product)); addCart(product.id) } catch { addCart(product.id) } }
   return <article className={`product-card ${compact ? 'compact' : ''}`}>
     <div className="product-image-wrap">
       <Link to={`/product/${productCodeOf(product)}`} state={{from:sourcePath}}><SafeImage src={product.image} alt={product.name}/></Link>
@@ -23,7 +25,7 @@ export function ProductCard({ product, compact = false }: { product: Product; co
       <MatchBadge status={product.status} compact/>
       {!compact && <p className="product-reason">{product.reason}</p>}
       <div className="product-footer"><div className="price"><strong>¥{product.price}</strong>{product.originalPrice && <del>¥{product.originalPrice}</del>}</div><span className="sales">月售 {product.sales}</span></div>
-      <div className="card-actions"><button className={`btn ghost icon ${compare.includes(product.id) ? 'selected' : ''}`} onClick={() => toggleCompare(product.id)}><GitCompareArrows size={17}/>对比</button><button className="btn primary grow" onClick={() => addCart(product.id)}><ShoppingBag size={17}/>加入购物车</button></div>
+      <div className="card-actions"><button className={`btn ghost icon ${compare.includes(product.id) ? 'selected' : ''}`} onClick={() => toggleCompare(product.id)}><GitCompareArrows size={17}/>对比</button><button className="btn primary grow" onClick={add}><ShoppingBag size={17}/>加入购物车</button></div>
     </div>
   </article>
 }

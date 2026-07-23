@@ -172,6 +172,25 @@ class FakeFilterService:
             }],
         }
 
+
+class FakeCartService:
+    item = {"id": 7, "product_code": "FP0001", "product_name": "原味燕麦片", "spec_code": "SPEC001", "spec_name": "500g", "image_url": None, "quantity": 1, "unit_price": Decimal("32.90"), "subtotal": Decimal("32.90"), "stock_quantity": 88, "sellable": True, "selected": True}
+    def get(self, _user_id): return {"cart_code":"CARTTEST","items":[self.item],"item_count":1,"total_quantity":1,"total_amount":Decimal("32.90")}
+    def add(self, _user_id, payload):
+        from app.core.exceptions import AppError
+        if payload["quantity"] > 88: raise AppError("INSUFFICIENT_STOCK","Insufficient product stock",409)
+        return self.item | {"quantity":payload["quantity"],"subtotal":Decimal("32.90")*payload["quantity"]}
+    def update(self, _user_id, item_id, quantity): return self.item | {"id":item_id,"quantity":quantity,"subtotal":Decimal("32.90")*quantity}
+    def delete(self, _user_id, _item_id): return None
+
+class FakeOrderService:
+    item={"id":31,"order_no":"ORDTEST31","status":"PENDING_PAYMENT","payment_status":"UNPAID","goods_amount":Decimal("32.90"),"shipping_amount":Decimal("6"),"payable_amount":Decimal("38.90"),"paid_amount":Decimal("0"),"placed_at":datetime(2026,7,23,tzinfo=timezone.utc),"paid_at":None,"items":[{"id":51,"product_code":"FP0001","product_name":"原味燕麦片","spec_code":"SPEC001","spec_name":"500g","image_url":None,"unit_price":Decimal("32.90"),"quantity":1,"subtotal":Decimal("32.90"),"ingredient_version":1}]}
+    def create(self,_user_id,_payload): return self.item
+    def list(self,_user_id,page,page_size): return {"total":1,"page":page,"page_size":page_size,"items":[self.item]}
+    def get(self,_user_id,_order_id): return self.item
+    def pay(self,_user_id,_order_id,_channel): return self.item|{"status":"PAID","payment_status":"PAID","paid_amount":Decimal("38.90"),"paid_at":datetime(2026,7,23,tzinfo=timezone.utc)}
+    def cancel(self,_user_id,_order_id): return self.item|{"status":"CANCELLED"}
+
 class FakeGraphService:
     def get_product_graph(self, _code):
         return GRAPH
@@ -188,4 +207,6 @@ def client():
         app.state.preference_service = FakePreferenceService()
         app.state.catalog_service = FakeCatalogService()
         app.state.filter_service = FakeFilterService()
+        app.state.cart_service = FakeCartService()
+        app.state.order_service = FakeOrderService()
         yield test_client

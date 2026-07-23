@@ -116,3 +116,8 @@ See [docs/mysql-user.md](docs/mysql-user.md) for the manual least-privilege `foo
 - `POST /api/v1/filter/search`：组合MySQL商品事实与Neo4j成分别名、衍生及风险证据，返回 `MATCH`、`RISK`、`NOT_MATCH` 或 `UNKNOWN`。
 
 `CONTAINS` 命中排除条件时为 `NOT_MATCH`，`MAY_CONTAIN` 命中时为 `RISK`；没有证据不能解释为安全。
+## Shopping and order APIs
+
+Authenticated consumers can use `GET /api/v1/cart`, `POST /api/v1/cart/items`, `PUT /api/v1/cart/items/{id}`, and `DELETE /api/v1/cart/items/{id}`. Orders are created from selected cart items with `POST /api/v1/orders`; `GET /api/v1/orders` and `GET /api/v1/orders/{order_id}` return only the current user's orders. Cancellation and mock payment use `POST /api/v1/orders/{order_id}/cancel` and `POST /api/v1/orders/{order_id}/pay`.
+
+Order creation locks inventory rows in stable ID order, revalidates active prices and stock, writes immutable product/specification/price/ingredient-version snapshots, deducts inventory, and removes purchased cart rows in one transaction. A checkout containing multiple merchants must be split into separate orders. Mock payment records a `payment_record`; it never contacts a real payment provider.
