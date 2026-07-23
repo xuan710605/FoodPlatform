@@ -1,7 +1,10 @@
 import type { Product } from '../types'
 import { graphEdges, graphNodes, products } from '../mock/data'
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000').replace(/\/$/, '')
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000').replace(/\/$/, '')
+export const ACCESS_TOKEN_KEY = 'access_token'
+export const getAccessToken = () => localStorage.getItem(ACCESS_TOKEN_KEY)
+export const saveAccessToken = (token:string) => localStorage.setItem(ACCESS_TOKEN_KEY, token)
 
 interface ApiEnvelope<T> { success: boolean; data: T; message: string; request_id: string }
 interface ApiProductListItem { id:number; product_code:string; name:string; subtitle:string|null; brand:string; category:string; merchant:string; main_image_url:string|null; sale_price:string|null; market_price:string|null; stock_quantity:number|null; audit_status:string; updated_at:string }
@@ -22,13 +25,19 @@ const matchStatuses:Record<FilterSearchItem['match_status'],Product['status']>={
 function mapFilterProduct(item:FilterSearchItem):Product{const id=Number(item.product_code.slice(2));const fallback=fallbackProduct(id);return{...fallback,id,productCode:item.product_code,name:item.name,brand:item.brand,category:item.category,image:item.main_image_url||fallback.image,price:item.sale_price==null?fallback.price:Number(item.sale_price),status:matchStatuses[item.match_status],reason:item.reasons.join('；'),evidence:[...item.contains_hits.map(x=>`明确含有${x}`),...item.may_contain_hits.map(x=>`可能含有${x}`)].join('；')||'结构化配料与营养证据已核对'}}
 function mockSearchFilter(analysis:FilterAnalyzeData):FilterSearchData{const category=analysis.category;const excluded=analysis.exclude_ingredients;const excludedCategoryNames=new Set(analysis.exclude_categories.map(code=>categoryLabels[code]).filter(Boolean));const items=products.filter(product=>(!category||product.category===category)&&!excludedCategoryNames.has(product.category)).map(product=>{const contains=excluded.filter(name=>product.ingredients.some(value=>value.includes(name))||product.additives.some(value=>value.includes(name)));const may=excluded.filter(name=>product.mayContain.some(value=>value.includes(name)));const overPrice=analysis.max_price!==null&&product.price>Number(analysis.max_price);let status:Product['status']=contains.length||overPrice?'不匹配':may.length?'存在风险':product.unknown.length?'信息不足':'完全匹配';return{...product,productCode:productCodeOf(product),status,reason:contains.length?`明确含有排除成分：${contains.join('、')}`:may.length?`包装提示可能含有：${may.join('、')}`:overPrice?'价格超过上限':'满足当前本地筛选条件'}});return{total:items.length,page:1,page_size:20,items,source:'mock'}}
 export async function searchFilter(analysis:FilterAnalyzeData):Promise<FilterSearchData>{const body={exclude_ingredients:analysis.exclude_ingredients,exclude_categories:analysis.exclude_categories,nutrition_targets:analysis.nutrition_targets,max_price:analysis.max_price,category_code:analysis.category_code,page:1,page_size:20};console.log('[filter/search] request conditions:',body);try{const data=await request<{total:number;page:number;page_size:number;items:FilterSearchItem[]}>('/api/v1/filter/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const result={...data,items:data.items.map(mapFilterProduct),source:'api' as const};console.log('[filter/search] response data:',result);return result}catch(error){console.warn('[filter/search] API failed, using Mock fallback',error);const fallback=mockSearchFilter(analysis);console.log('[filter/search] response data:',fallback);return fallback}}
-async function request<T>(path:string,init?:RequestInit):Promise<T>{
-  const response=await fetch(`${API_BASE_URL}${path}`,{...init,headers:{Accept:'application/json',...init?.headers}})
-  if(!response.ok) throw new Error(`API request failed: ${response.status}`)
-  const payload=await response.json() as ApiEnvelope<T>
-  if(!payload.success) throw new Error(payload.message||'API request failed')
+export async function apiRequest<T>(path:string,init?:RequestInit):Promise<T>{
+  const token=getAccessToken()
+  const url=`${API_BASE_URL}${path}`
+  const headers:Record<string,string>={Accept:'application/json',...(init?.headers as Record<string,string>||{})}
+  if(token)headers.Authorization=`Bearer ${token}`
+  console.log('[api] request',{url,hasToken:Boolean(token)})
+  const response=await fetch(url,{...init,headers})
+  console.log('[api] response',{url,status:response.status})
+  const payload=await response.json() as ApiEnvelope<T>&{error?:{message?:string}}
+  if(!response.ok||!payload.success)throw new Error(payload.error?.message||payload.message||`API request failed: ${response.status}`)
   return payload.data
 }
+const request=apiRequest
 
 export function productCodeOf(product:Product):string{return product.productCode||`FP${String(product.id).padStart(4,'0')}`}
 export function resolveProductCode(routeValue?:string):string{if(routeValue?.match(/^FP\d{4,}$/i))return routeValue.toUpperCase();const id=Number(routeValue);return `FP${String(Number.isFinite(id)&&id>0?id:1).padStart(4,'0')}`}

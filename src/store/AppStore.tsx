@@ -25,7 +25,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartLine[]>([{ productId: 1, quantity: 1, selected: true }, { productId: 13, quantity: 2, selected: true }, { productId: 15, quantity: 1, selected: false }])
   const [favorites, setFavorites] = useState<number[]>([2, 5])
   const [compare, setCompare] = useState<number[]>([1, 2, 16])
-  const [loggedIn, setLoggedIn] = useState(true)
+  const [loggedIn, setLoggedIn] = useState(() => Boolean(localStorage.getItem('access_token')))
   const [toasts, setToasts] = useState<Toast[]>([])
 
   const notify = (message: string, tone: Toast['tone'] = 'success') => {
@@ -58,7 +58,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     notify(compare.includes(id) ? '已移出对比' : '已加入对比', 'info')
   }
 
-  const value = useMemo(() => ({ cart, favorites, compare, loggedIn, toasts, addCart, updateCart, removeCart, toggleFavorite, toggleCompare, login: () => { setLoggedIn(true); notify('登录成功，欢迎回来') }, logout: () => { setLoggedIn(false); notify('已退出登录', 'info') }, notify }), [cart, favorites, compare, loggedIn, toasts])
+  const value = useMemo(() => ({ cart, favorites, compare, loggedIn, toasts, addCart, updateCart, removeCart, toggleFavorite, toggleCompare, login: () => { setLoggedIn(true); notify('登录成功，欢迎回来') }, logout: () => { localStorage.removeItem('access_token'); setLoggedIn(false); notify('已退出登录', 'info') }, notify }), [cart, favorites, compare, loggedIn, toasts])
   return <Context.Provider value={value}>{children}<div className="toast-stack">{toasts.map((t) => <div key={t.id} className={`toast ${t.tone}`}>{t.message}</div>)}</div></Context.Provider>
 }
 
