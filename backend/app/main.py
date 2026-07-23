@@ -13,9 +13,15 @@ from app.core.exceptions import install_exception_handlers
 from app.core.logging import configure_logging, request_id_context
 from app.db.mysql import create_mysql_engine, create_session_factory
 from app.db.neo4j import create_neo4j_driver
+from app.repositories.catalog_repository import CatalogRepository
 from app.repositories.graph_repository import GraphRepository
+from app.repositories.preference_repository import PreferenceRepository
+from app.repositories.user_repository import UserRepository
 from app.repositories.product_repository import ProductRepository
+from app.services.auth_service import AuthService
+from app.services.catalog_service import CatalogService
 from app.services.graph_service import GraphService
+from app.services.preference_service import PreferenceService
 from app.services.product_service import ProductService
 
 settings = get_settings()
@@ -28,11 +34,16 @@ async def lifespan(app: FastAPI):
     logger.info("Starting %s version %s", settings.app_name, __version__)
     engine = create_mysql_engine(settings)
     driver = create_neo4j_driver(settings)
-    product_repository = ProductRepository(create_session_factory(engine))
+    session_factory = create_session_factory(engine)
+    product_repository = ProductRepository(session_factory)
+    user_repository = UserRepository(session_factory)
     app.state.settings = settings
     app.state.mysql_engine = engine
     app.state.neo4j_driver = driver
     app.state.product_service = ProductService(product_repository)
+    app.state.auth_service = AuthService(user_repository, settings)
+    app.state.preference_service = PreferenceService(PreferenceRepository(session_factory))
+    app.state.catalog_service = CatalogService(CatalogRepository(session_factory))
     app.state.graph_service = GraphService(
         product_repository,
         GraphRepository(driver, settings.neo4j_database),
@@ -48,7 +59,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.app_name,
     version=__version__,
-    description="Read-only product and knowledge graph API for FoodPlatform.",
+    description="Authentication, user preferences, catalog, product, and knowledge graph API for FoodPlatform.",
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
@@ -63,8 +74,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["GET", "OPTIONS"],
-    allow_headers=["Accept", "Content-Type", "X-Request-ID"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Accept", "Authorization", "Content-Type", "X-Request-ID"],
 )
 install_exception_handlers(app)
 app.include_router(api_router, prefix=settings.api_v1_prefix)

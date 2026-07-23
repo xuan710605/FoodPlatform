@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 os.environ.setdefault("MYSQL_PASSWORD", "unit_test_only")
 os.environ.setdefault("NEO4J_PASSWORD", "unit_test_only")
+os.environ.setdefault("JWT_SECRET", "unit-test-jwt-secret-at-least-32-characters")
 
 from app.main import app  # noqa: E402
 
@@ -99,6 +100,53 @@ class FakeProductService:
         return DETAIL
 
 
+
+AUTH_USER = {
+    "id": 21, "user_code": "USRTEST21", "username": "test_consumer",
+    "email": "consumer@example.test", "user_type": "CONSUMER", "status": "ACTIVE",
+    "roles": ["CONSUMER"], "created_at": datetime(2026, 7, 23, tzinfo=timezone.utc),
+}
+
+
+class FakeAuthService:
+    def register(self, username, email, _password, _nickname):
+        return AUTH_USER | {"username": username, "email": email}
+
+    def login(self, _identity, _password):
+        return {"access_token": "good-token", "token_type": "bearer", "expires_in": 3600, "user": AUTH_USER}
+
+    def authenticate_token(self, token):
+        from app.core.exceptions import AppError
+        if token != "good-token":
+            raise AppError("INVALID_TOKEN", "Access token is invalid or expired", 401)
+        return AUTH_USER
+
+
+class FakePreferenceService:
+    item = {
+        "id": 1, "preference_code": "PREF001", "kind": "ALLERGEN", "code": "ING002",
+        "name": "花生", "preference_type": "EXCLUDE", "strength": 100, "is_enabled": True,
+        "created_at": datetime(2026, 7, 23, tzinfo=timezone.utc),
+        "updated_at": datetime(2026, 7, 23, tzinfo=timezone.utc),
+    }
+
+    def list_preferences(self, _user_id):
+        return [self.item]
+
+    def create_preference(self, _user_id, payload):
+        return self.item | {"kind": payload["kind"], "code": payload["code"], "name": payload["name"]}
+
+    def delete_preference(self, _user_id, _preference_id):
+        return None
+
+
+class FakeCatalogService:
+    def categories(self):
+        return [{"category_code": "CAT001", "name": "早餐麦片", "parent_code": None, "level": 1, "sort_order": 1}]
+
+    def brands(self):
+        return [{"brand_code": "BR001", "name": "谷物日记", "logo_url": None, "description": None}]
+
 class FakeGraphService:
     def get_product_graph(self, _code):
         return GRAPH
@@ -111,4 +159,7 @@ def client():
         app.state.neo4j_driver = FakeDriver()
         app.state.product_service = FakeProductService()
         app.state.graph_service = FakeGraphService()
+        app.state.auth_service = FakeAuthService()
+        app.state.preference_service = FakePreferenceService()
+        app.state.catalog_service = FakeCatalogService()
         yield test_client

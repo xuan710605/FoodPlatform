@@ -1,6 +1,6 @@
 # FoodPlatform FastAPI backend
 
-Version `0.3.0` provides the backend foundation and the first read-only APIs. It does not implement authentication, orders, payment, Qwen, graph writes, or frontend integration.
+Version `0.3.0` provides the backend foundation, read-only product/graph APIs, authentication, user preferences, and basic catalog APIs. It does not implement orders, payment, Qwen, graph writes, deployment, or frontend integration.
 
 ## Architecture
 
@@ -15,7 +15,7 @@ API routes -> Services -> Repositories -> MySQL / Neo4j
 
 ## Requirements and verified dependency set
 
-The local installation was performed with Python 3.14.6. The resolved core versions were FastAPI 0.128.8, Uvicorn 0.40.0, Pydantic 2.12.5, pydantic-settings 2.12.0, SQLAlchemy 2.0.51, PyMySQL 1.1.3, cryptography 46.0.7, Neo4j Driver 6.1.0, pytest 9.0.3, and HTTPX 0.28.1. `pyproject.toml` uses narrow version ranges rather than unbounded `latest` dependencies.
+The local installation was performed with Python 3.14.6. The resolved core versions were FastAPI 0.128.8, Uvicorn 0.40.0, Pydantic 2.12.5, pydantic-settings 2.12.0, SQLAlchemy 2.0.51, PyMySQL 1.1.3, cryptography 46.0.7, bcrypt 5.0.0, PyJWT 2.10.1, email-validator 2.3.0, Neo4j Driver 6.1.0, pytest 9.0.3, and HTTPX 0.28.1. `pyproject.toml` uses narrow version ranges rather than unbounded `latest` dependencies.
 
 ## Setup
 
@@ -28,16 +28,9 @@ Set-Location backend
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 ```
 
-Edit `backend/.env` and replace both `change_me` values. Never commit that file. The application requires `MYSQL_PASSWORD` and `NEO4J_PASSWORD`; missing values produce a configuration validation error without printing a secret.
+Edit `backend/.env` and replace all credential placeholders, including a random `JWT_SECRET` of at least 32 characters. Never commit that file. The application requires `MYSQL_PASSWORD` and `NEO4J_PASSWORD`; missing values produce a configuration validation error without printing a secret.
 
-Recommended minimum MySQL account setup (run manually as a database administrator and choose a strong password):
-
-```sql
-CREATE USER IF NOT EXISTS 'food_platform_app'@'localhost' IDENTIFIED BY 'replace_with_a_strong_secret';
-GRANT SELECT ON food_platform.* TO 'food_platform_app'@'localhost';
-```
-
-The API never changes users or the root password. For this read-only stage, `SELECT` is sufficient.
+Create `food_platform_app` manually with only `SELECT`, `INSERT`, `UPDATE`, `DELETE`, and `EXECUTE`; see [docs/mysql-user.md](docs/mysql-user.md). The API never creates database users, changes root credentials, or receives schema-management privileges.
 
 ## Run
 
@@ -84,7 +77,7 @@ These calls are read-only and never initialize or clear either database.
 
 ## Not implemented in this stage
 
-Registration, login, JWT authorization, preferences, cart, orders, payment, merchant/admin writes, Qwen calls, graph mutation, background jobs, Docker deployment, and frontend API replacement remain intentionally out of scope.
+Cart, orders, payment, merchant/admin write APIs, Qwen calls, smart-filter rule execution, graph mutation, background jobs, Docker deployment, and frontend API replacement remain intentionally out of scope.
 
 ## Troubleshooting
 
@@ -95,3 +88,24 @@ Registration, login, JWT authorization, preferences, cart, orders, payment, merc
 - CORS rejected: add the exact trusted frontend origin to comma-separated `CORS_ORIGINS`; wildcard origins are rejected.
 
 Do not commit `.env`, `.venv`, logs, caches, passwords, or database data files.
+
+## Authentication and base business APIs
+
+The second foundation stage adds bcrypt registration, JWT login, current-user lookup, role guards, user preferences, categories, and brands. Configure a random local `JWT_SECRET` of at least 32 characters in ignored `backend/.env`; only `HS256` is accepted and access tokens default to 60 minutes.
+
+Implemented endpoints now also include:
+
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `GET /api/v1/users/me`
+- `GET /api/v1/preferences`
+- `POST /api/v1/preferences`
+- `DELETE /api/v1/preferences/{id}`
+- `GET /api/v1/categories`
+- `GET /api/v1/brands`
+
+Database role `PLATFORM_ADMIN` is normalized to API role `ADMIN`; `CONSUMER`, `MERCHANT`, `KNOWLEDGE_ADMIN`, and the legacy `OPS` role retain their codes. `require_role()` is available for later `/admin/*` and `/merchant/*` routers.
+
+The existing database has `user_ingredient_preference`, not a generic `user_preference` table. The API stores the requested preference category in `preference_source`: allergen and dietary restriction records use `EXCLUDE`, while nutrition targets use `PREFER`. Older `USER_INPUT` rows are mapped safely when read. No schema migration is performed.
+
+See [docs/mysql-user.md](docs/mysql-user.md) for the manual least-privilege `food_platform_app` grant. The backend never creates that account automatically and never receives `DROP`, `ALTER`, or `CREATE` privileges.

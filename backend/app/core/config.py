@@ -35,6 +35,9 @@ class Settings(BaseSettings):
 
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:5173", "http://127.0.0.1:5173"]
     log_level: str = "INFO"
+    jwt_secret: SecretStr
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_minutes: int = Field(default=60, ge=5, le=1440)
 
     @field_validator("cors_origins", mode="before")
     @classmethod
@@ -48,6 +51,20 @@ class Settings(BaseSettings):
     def reject_wildcard(cls, value: list[str]) -> list[str]:
         if "*" in value:
             raise ValueError("CORS_ORIGINS must not contain '*' ")
+        return value
+
+    @field_validator("jwt_algorithm")
+    @classmethod
+    def validate_jwt_algorithm(cls, value: str) -> str:
+        if value != "HS256":
+            raise ValueError("JWT_ALGORITHM must be HS256")
+        return value
+
+    @field_validator("jwt_secret")
+    @classmethod
+    def validate_jwt_secret(cls, value: SecretStr) -> SecretStr:
+        if len(value.get_secret_value()) < 32:
+            raise ValueError("JWT_SECRET must contain at least 32 characters")
         return value
 
 

@@ -93,3 +93,7 @@ pnpm preview
     .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
 需要先在未提交的 backend/.env 中配置 MySQL 与 Neo4j 应用凭据。Swagger 地址为 http://127.0.0.1:8000/docs。详细环境变量、测试和故障排查见 backend/README.md。
+
+### 用户体系与基础业务接口
+
+后端开发分支现已提供消费者注册、JWT登录、当前用户、角色依赖、用户偏好、分类和品牌接口。JWT密钥与数据库密码只配置在未提交的 `backend/.env`，MySQL最小权限账号说明见 [backend/docs/mysql-user.md](backend/docs/mysql-user.md)。前端仍使用Mock数据，本阶段没有替换前端API。
