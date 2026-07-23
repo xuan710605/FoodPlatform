@@ -5,13 +5,12 @@ import type { Product } from '../../types'
 import { MatchBadge } from '../common/UI'
 import { SafeImage } from '../common/SafeImage'
 import { productCodeOf } from '../../services/api'
-import { addCartItem } from '../../services/commerce'
 
 export function ProductCard({ product, compact = false }: { product: Product; compact?: boolean }) {
   const { addCart, toggleFavorite, toggleCompare, favorites, compare } = useApp()
   const location = useLocation()
   const sourcePath = `${location.pathname}${location.search}`
-  const add = async () => { try { await addCartItem(productCodeOf(product)); addCart(product.id) } catch { addCart(product.id) } }
+  const add = () => { void addCart(product.id) }
   return <article className={`product-card ${compact ? 'compact' : ''}`}>
     <div className="product-image-wrap">
       <Link to={`/product/${productCodeOf(product)}`} state={{from:sourcePath}}><SafeImage src={product.image} alt={product.name}/></Link>
