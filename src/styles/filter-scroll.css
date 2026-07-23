@@ -1,0 +1,26 @@
+@media (min-width:901px){
+  .site-shell.filter-scroll-mode{height:100dvh;overflow:hidden}
+  .filter-scroll-mode>main{height:calc(100dvh - 76px);min-height:0;overflow:hidden}
+  .filter-scroll-mode>.site-footer{display:none}
+  .filter-scroll-page{height:100%;padding:24px 0 18px;overflow:hidden}
+  .filter-scroll-page>.container{height:100%;min-height:0;display:flex;flex-direction:column}
+  .filter-scroll-page .breadcrumbs,.filter-scroll-page .page-head,.filter-scroll-page>.container>.notice{flex:none}
+  .filter-scroll-page .page-head{margin-bottom:18px}
+  .product-filter-page .catalog-layout,.smart-filter-page .smart-shell{flex:1;min-height:0;align-items:stretch}
+  .product-filter-page .filter-panel,.smart-filter-page .smart-panel{position:relative;top:auto;height:100%;max-height:none;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:16px}
+  .product-filter-page .catalog-results-scroll,.smart-filter-page .smart-results{height:100%;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:8px}
+  .product-filter-page .toolbar{position:sticky;top:0;z-index:5;background:var(--surface)}
+  .smart-filter-page .smart-results-head{position:sticky;top:0;z-index:4;background:var(--bg);padding:4px 0 12px}
+  .product-filter-page .filter-panel::-webkit-scrollbar,.smart-filter-page .smart-panel::-webkit-scrollbar,.catalog-results-scroll::-webkit-scrollbar,.smart-results::-webkit-scrollbar{width:8px}
+  .product-filter-page .filter-panel::-webkit-scrollbar-thumb,.smart-filter-page .smart-panel::-webkit-scrollbar-thumb,.catalog-results-scroll::-webkit-scrollbar-thumb,.smart-results::-webkit-scrollbar-thumb{background:#cbd2c6;border-radius:99px}
+}
+
+@media (max-width:900px){
+  .site-shell.filter-scroll-mode{height:auto;overflow:visible}
+  .filter-scroll-mode>main{height:auto;overflow:visible}
+  .filter-scroll-mode>.site-footer{display:block}
+  .filter-scroll-page{height:auto;overflow:visible;padding:38px 0 70px}
+  .filter-scroll-page>.container{height:auto;display:block}
+  .product-filter-page .catalog-layout,.smart-filter-page .smart-shell{min-height:0}
+  .smart-filter-page .smart-panel,.smart-filter-page .smart-results,.product-filter-page .catalog-results-scroll{height:auto;overflow:visible;padding-right:0}
+}

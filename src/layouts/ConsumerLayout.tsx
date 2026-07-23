@@ -1,12 +1,12 @@
 import { Heart, Menu, Search, ShoppingBag, UserRound, X } from 'lucide-react'
 import { useState } from 'react'
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useApp } from '../store/AppStore'
 
 export function ConsumerLayout() {
-  const { cart, favorites, loggedIn } = useApp(); const [mobile, setMobile] = useState(false); const [query, setQuery] = useState(''); const navigate = useNavigate()
+  const { cart, favorites, loggedIn } = useApp(); const location = useLocation(); const filterScrollMode = location.pathname === '/products' || location.pathname === '/smart-filter'; const [mobile, setMobile] = useState(false); const [query, setQuery] = useState(''); const navigate = useNavigate()
   const submit = (e: React.FormEvent) => { e.preventDefault(); navigate(`/products?q=${encodeURIComponent(query)}`); setMobile(false) }
-  return <div className="site-shell">
+  return <div className={`site-shell ${filterScrollMode ? 'filter-scroll-mode' : ''}`}>
     <header className="site-header"><div className="header-inner">
       <Link to="/" className="logo"><span className="logo-mark">知</span><span><b>知味集</b><small>FoodGraph Market</small></span></Link>
       <nav className={`main-nav ${mobile ? 'open' : ''}`}>
