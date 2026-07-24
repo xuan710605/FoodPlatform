@@ -1,165 +1,184 @@
 # FoodPlatform
 
-AI 驱动食品智能电商平台
+> 基于AI智能筛选与食品信息管理的多角色食品电商平台
 
-## 项目介绍
+## 项目简介
 
-FoodPlatform 是一个融合 AI 自然语言理解、食品知识分析和电商业务流程的智能食品平台。系统面向消费者提供商品浏览、搜索、成分与营养筛选、收藏、购物车、订单和评价等完整流程，并通过食品知识图谱和 Qwen 大语言模型，将用户的自然语言需求转换为可执行的结构化条件，给出可解释的匹配、风险和信息不足结论。
+FoodPlatform 是一个面向食品消费场景的多角色电商平台，围绕商品信息、食品成分、营养数据和交易流程提供统一的前后端实现。
 
-食品成分偏好与筛选结果仅用于商品信息辅助，不构成医学建议；实际信息应以商品包装标签为准。
+系统目前包含消费者、商家和管理员三类主要角色：消费者可以浏览与筛选食品、管理购物车并完成订单；商家可以维护自己的商品和处理订单；管理员可以查看平台数据、管理用户并审核商品。
+
+平台的特色能力是自然语言食品筛选。用户可以用日常语言描述商品类别、需要排除的成分、偏好成分、价格范围和营养要求。系统通过 Qwen 大模型与受控规则共同解析需求，再结合 MySQL 商品数据和 Neo4j 食品知识关系生成可解释的筛选结果。
+
+食品成分、营养及风险信息仅用于商品筛选与信息辅助，不构成医学建议。实际信息应以商品包装标签和权威来源为准。
+
+## 系统架构
+
+```text
+React + TypeScript + Vite
+            ↓ HTTP / JSON / JWT
+        FastAPI Backend
+            ↓
+       MySQL + Neo4j
+            ↓
+    Qwen + Controlled Rules
+```
+
+- **前端：React + TypeScript + Vite**，负责三类角色的页面、路由、用户状态及API交互。
+- **后端：FastAPI**，采用 Router → Service → Repository 分层，提供认证、商品、筛选、交易和工作台接口。
+- **数据库：MySQL**，存储用户、角色、商品、库存、收藏、购物车、订单、评价和审核等业务数据。
+- **知识图谱：Neo4j**，存储食品、成分、添加剂、风险、品牌和分类之间的知识关系。
+- **AI：Qwen大模型 + 规则解析**，负责自然语言条件解析；大模型不可用时自动使用规则解析结果继续运行。
+
+## 功能介绍
+
+### 消费者端
+
+- 用户注册、登录与JWT登录状态恢复
+- 首页商品浏览
+- 商品分类、关键词和条件搜索
+- 商品详情查看
+- 食品配料、结构化成分、营养和来源信息展示
+- 商品知识图谱查看
+- AI自然语言智能筛选
+- 用户食品偏好管理
+- 商品收藏
+- 购物车管理
+- 收货地址与结算
+- 创建订单、模拟支付、取消订单和确认收货
+- 订单列表与订单详情
+- 已完成订单商品评价
+- 个人中心及用户数据隔离
+
+### 商家端
+
+- 商家工作台
+- 当前商家商品、订单和销售数据统计
+- 当前商家商品列表
+- 商品新增与编辑
+- 商品上下架
+- 查看购买本商家商品的订单
+- 订单状态处理：已支付 → 配送中 → 已完成
+
+商家接口通过JWT中的用户身份定位 `merchant.owner_user_id`，只能访问自己的商品和订单。
+
+### 管理员端
+
+- 平台用户、商家、商品和订单数据统计
+- 用户列表
+- 按用户名或邮箱搜索用户
+- 用户详情查看
+- 用户启用和禁用
+- 待审核商品查看
+- 商品审核通过
+
+管理员功能使用 `ADMIN` 权限保护，不提供密码修改、角色修改或用户删除功能。
+
+## AI能力说明
+
+- **自然语言需求解析**：将用户输入转换为结构化筛选条件。
+- **Qwen辅助理解**：补充复杂表达、偏好和分类语义。
+- **规则可靠性保障**：明确的排除成分、分类和营养硬约束由受控规则优先保留。
+- **失败降级**：Qwen超时、接口失败、JSON无效或Schema校验失败时自动回退规则解析。
+- **成分与营养匹配**：结合商品成分、可能含有成分、营养值、价格和分类执行筛选。
+- **结果解释**：区分 `MATCH`、`RISK`、`NOT_MATCH` 和 `UNKNOWN`，返回命中原因与证据信息。
+- **AI辅助软件开发流程**：项目开发过程中使用AI协助需求分析、架构设计、代码生成、问题定位和测试验证。
+
+Qwen只负责“自然语言 → 结构化筛选条件”，不直接修改数据库，也不代替商品匹配规则。
 
 ## 技术栈
 
-### 前端
+### Frontend
 
 - React
 - TypeScript
 - Vite
 - React Router
-- Cytoscape.js：知识图谱可视化
-- Recharts：图表展示
-- Lucide React：图标组件
+- Cytoscape.js
+- Recharts
+- Lucide React
 
-### 后端
+### Backend
 
 - FastAPI
-- Pydantic v2 / pydantic-settings
+- Pydantic v2
+- pydantic-settings
 - SQLAlchemy 2
 - PyMySQL
-- JWT、bcrypt
-- Neo4j 官方 Python Driver
+- JWT / bcrypt
+- Neo4j Python Driver
 - HTTPX
 - pytest
 
-### 数据与智能能力
+### Database
 
-- MySQL：关系型业务数据库
-- Neo4j：食品知识图谱
-- Qwen 大语言模型：自然语言筛选条件解析
+- MySQL
+- Neo4j
 
-## 核心功能
+### AI
 
-### 消费者端
+- Qwen大语言模型
+- 受控规则解析器
 
-- 用户注册、登录与 JWT 登录态恢复
-- 商品浏览、分类筛选与关键词搜索
-- 商品详情、配料、营养、来源和知识图谱查看
-- 用户食品成分偏好管理
-- 商品收藏
-- 购物车数量管理
-- 收货地址与结算
-- 订单创建、查询、取消、模拟支付和确认收货
-- 已完成订单商品评价与评价查询
-- 用户中心及个人业务数据隔离
-
-### 智能能力
-
-- 自然语言食品筛选
-- Qwen 语义解析
-- 确定性规则解析与失败降级
-- 用户食品偏好合并
-- 食品成分与潜在风险分析
-- 糖、脂肪、蛋白质和钠等动态营养条件筛选
-- 商品价格与分类条件筛选
-- 可解释的匹配原因和证据
-- `MATCH`、`RISK`、`NOT_MATCH`、`UNKNOWN` 四类结果
-
-## 系统架构
+## 项目目录结构
 
 ```text
-React Frontend
-      ↓ HTTP / JSON / JWT
-FastAPI Backend API
-      ↓
-MySQL + Neo4j
-      ↓
-Qwen（可选启用，失败时回退规则解析）
+FoodPlatform/
+├─ backend/
+│  ├─ app/
+│  │  ├─ api/               # FastAPI路由与API版本
+│  │  ├─ core/              # 配置、日志、响应和异常处理
+│  │  ├─ db/                # MySQL与Neo4j连接
+│  │  ├─ dependencies/      # JWT认证和角色依赖
+│  │  ├─ models/            # 后端数据模型
+│  │  ├─ repositories/      # MySQL与Neo4j数据访问
+│  │  ├─ schemas/           # Pydantic请求与响应模型
+│  │  ├─ services/          # 业务编排与智能解析
+│  │  └─ main.py            # FastAPI应用入口
+│  ├─ docs/                 # 后端专项文档
+│  ├─ tests/                # pytest测试
+│  ├─ .env.example          # 环境变量模板
+│  ├─ pyproject.toml
+│  └─ README.md
+├─ database/
+│  ├─ mysql/                # Schema、Seed、视图和存储过程
+│  ├─ neo4j/                # 约束、初始化、查询和验证脚本
+│  ├─ DATABASE_DESIGN.md
+│  ├─ data-mapping.md
+│  └─ init-database.ps1
+├─ src/
+│  ├─ components/           # 公共、商品、地址等组件
+│  ├─ layouts/              # 消费者端和工作台布局
+│  ├─ pages/
+│  │  ├─ consumer/          # 消费者页面
+│  │  ├─ merchant/          # 商家页面
+│  │  ├─ admin/             # 管理员页面
+│  │  └─ knowledge/         # 知识管理页面
+│  ├─ services/             # 前端API服务层
+│  ├─ store/                # 用户与全局业务状态
+│  ├─ styles/               # 全局样式
+│  ├─ types/                # TypeScript类型
+│  ├─ App.tsx               # 前端路由入口
+│  └─ main.tsx
+├─ package.json
+├─ pnpm-lock.yaml
+├─ vite.config.ts
+└─ README.md
 ```
-
-后端使用清晰的分层结构：
-
-```text
-API Router
-    ↓
-Service
-    ↓
-Repository
-    ↓
-MySQL / Neo4j
-```
-
-- 前端负责交互、路由、状态管理和结果展示。
-- FastAPI 提供认证、商品、筛选、用户和交易接口。
-- MySQL 保存用户、商品事实与交易数据。
-- Neo4j 保存食品成分、别名、衍生和风险关系。
-- Qwen 只参与自然语言条件解析，不直接修改商品事实或执行数据库操作。
-
-## 智能筛选流程
-
-```text
-用户输入自然语言
-        ↓
-Qwen / 受控规则解析
-        ↓
-结构化 FilterConditions
-        ↓
-商品分类、价格、成分和营养匹配
-        ↓
-MATCH / RISK / NOT_MATCH / UNKNOWN
-```
-
-判定语义：
-
-- `MATCH`：满足当前已知筛选条件。
-- `RISK`：商品可能含有用户排除的成分。
-- `NOT_MATCH`：商品明确含有排除成分，或不满足价格、营养等硬条件。
-- `UNKNOWN`：成分、营养、价格或知识证据不足，不能判断为安全或匹配。
-
-明确的用户条件由受控规则优先保留，Qwen 不能覆盖已识别的排除成分和营养硬约束。Qwen 超时、接口失败、JSON 无效或校验失败时，系统自动使用规则解析结果继续运行。
-
-## 数据设计
-
-### MySQL 负责
-
-- 用户、角色和权限
-- 用户资料、食品偏好和收货地址
-- 商家、品牌和商品分类
-- 商品、规格、图片、价格和库存
-- 原始配料文本与结构化成分快照
-- 商品营养数据
-- 收藏、购物车和浏览业务
-- 订单、订单项和支付记录
-- 商品评价
-- 商品审核、异常记录和审计日志
-
-商品原始配料文本与结构化成分分别保存。订单项保存商品名称、规格、价格和成分版本快照，避免后续商品修改影响历史订单。
-
-### Neo4j 负责
-
-- 食品商品、成分、添加剂、营养、品牌和分类节点
-- 食品明确包含成分关系
-- 食品可能包含成分关系
-- 成分别名和衍生关系
-- 成分风险关系
-- 成分替代关系和数据来源
-
-MySQL 与 Neo4j 通过 `product_code`、`ingredient_code`、`brand_code`、`category_code` 等业务编码关联，不依赖 Neo4j 内部节点 ID。
-
-数据库设计、初始化顺序和验证方式见 [database/README.md](database/README.md) 与 [database/DATABASE_DESIGN.md](database/DATABASE_DESIGN.md)。
 
 ## 运行方式
 
 ### 1. 环境要求
 
-- Node.js 与 pnpm
-- Python 3.12–3.14
+- Node.js与pnpm
+- Python 3.12至3.14
 - MySQL
 - Neo4j
-- Qwen API Key（可选）
+- Qwen API Key（仅在启用Qwen时需要）
 
 ### 2. 初始化数据库
 
-数据库脚本位于 `database/`。初始化脚本会清理目标演示数据库，执行前必须确认连接目标并备份需要保留的数据。
+数据库初始化文件位于 `database/`。初始化脚本会清理目标演示数据，执行前应确认连接目标并备份需要保留的数据。
 
 ```powershell
 Set-Location D:\CodexProjects\FoodPlatform
@@ -176,41 +195,41 @@ $neo4jPassword = Read-Host 'Neo4j password' -AsSecureString
   -Neo4jPassword $neo4jPassword
 ```
 
-应用账号建议使用最小权限，参考 [backend/docs/mysql-user.md](backend/docs/mysql-user.md)。
+详细说明见 [database/README.md](database/README.md) 和 [database/DATABASE_DESIGN.md](database/DATABASE_DESIGN.md)。应用账号建议遵循 [backend/docs/mysql-user.md](backend/docs/mysql-user.md) 中的最小权限方案。
 
 ### 3. 配置后端环境变量
 
-创建本地配置文件：
+复制环境变量模板：
 
 ```powershell
 Copy-Item backend\.env.example backend\.env
 ```
 
-编辑 `backend/.env`，配置：
+在本地 `backend/.env` 中配置以下项目：
 
 ```env
-MYSQL_HOST=127.0.0.1
-MYSQL_PORT=3306
-MYSQL_USER=food_platform_app
-MYSQL_PASSWORD=your_local_password
-MYSQL_DATABASE=food_platform
+MYSQL_HOST=
+MYSQL_PORT=
+MYSQL_USER=
+MYSQL_PASSWORD=
+MYSQL_DATABASE=
 
-NEO4J_URI=neo4j://localhost:7687
-NEO4J_USER=neo4j
-NEO4J_PASSWORD=your_local_password
-NEO4J_DATABASE=neo4j
+NEO4J_URI=
+NEO4J_USER=
+NEO4J_PASSWORD=
+NEO4J_DATABASE=
 
-JWT_SECRET=replace_with_at_least_32_random_characters
-CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+JWT_SECRET=
+CORS_ORIGINS=
 
 QWEN_ENABLED=false
 QWEN_API_KEY=
-QWEN_MODEL=qwen-plus
-QWEN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+QWEN_MODEL=
+QWEN_BASE_URL=
 QWEN_TIMEOUT_SECONDS=8
 ```
 
-`backend/.env` 已被 Git 忽略。禁止提交真实数据库密码、JWT Secret、Token 或 Qwen API Key。未启用 Qwen 时，智能筛选使用受控规则解析。
+`backend/.env` 已被Git忽略。不要将真实密码、JWT Secret、Token或API Key写入代码、README或Git历史。
 
 ### 4. 启动后端
 
@@ -223,15 +242,15 @@ Set-Location backend
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-接口文档：
+后端启动后可访问：
 
 - Swagger UI：`http://127.0.0.1:8000/docs`
 - ReDoc：`http://127.0.0.1:8000/redoc`
-- OpenAPI：`http://127.0.0.1:8000/openapi.json`
+- 健康检查：`http://127.0.0.1:8000/api/v1/health/ready`
 
 ### 5. 启动前端
 
-新建 PowerShell 窗口：
+新建PowerShell窗口：
 
 ```powershell
 Set-Location D:\CodexProjects\FoodPlatform
@@ -251,69 +270,42 @@ pnpm preview
 
 未设置 `VITE_API_BASE_URL` 时，前端默认请求 `http://127.0.0.1:8000`。
 
-## 项目目录结构
-
-```text
-FoodPlatform/
-├─ backend/
-│  ├─ app/
-│  │  ├─ api/             # FastAPI 路由
-│  │  ├─ core/            # 配置、日志、响应和异常
-│  │  ├─ db/              # MySQL 与 Neo4j 连接
-│  │  ├─ dependencies/    # JWT 与角色依赖
-│  │  ├─ models/          # 数据模型
-│  │  ├─ repositories/    # 数据访问层
-│  │  ├─ schemas/         # Pydantic 请求与响应模型
-│  │  ├─ services/        # 业务与智能筛选编排
-│  │  └─ main.py          # FastAPI 应用入口
-│  ├─ docs/               # 后端专项文档
-│  ├─ tests/              # pytest 测试
-│  ├─ .env.example
-│  ├─ pyproject.toml
-│  └─ README.md
-├─ database/
-│  ├─ mysql/              # Schema、Seed、视图和存储过程
-│  ├─ neo4j/              # 约束、Seed、查询和验证脚本
-│  ├─ DATABASE_DESIGN.md
-│  ├─ data-mapping.md
-│  └─ init-database.ps1
-├─ src/
-│  ├─ components/         # 通用、商品和地址组件
-│  ├─ layouts/            # 消费者及工作台布局
-│  ├─ pages/              # 消费者、商家、管理员和知识页面
-│  ├─ services/           # 前端 API 服务
-│  ├─ store/              # 全局用户与业务状态
-│  ├─ styles/             # 全局样式
-│  ├─ types/              # TypeScript 类型
-│  ├─ App.tsx             # 路由入口
-│  └─ main.tsx
-├─ package.json
-├─ pnpm-lock.yaml
-├─ vite.config.ts
-└─ README.md
-```
-
-## 测试结果
-
-在 `final-product-polish` 分支、提交 `641e566c827bc0cd232fd7b9eeef50c8893f5887` 基础上执行：
+### 6. 运行测试
 
 ```powershell
-backend\.venv\Scripts\python.exe -m pytest backend
+Set-Location D:\CodexProjects\FoodPlatform\backend
+.\.venv\Scripts\python.exe -m pytest
+
+Set-Location D:\CodexProjects\FoodPlatform
 pnpm build
 ```
 
-当前实际结果：
+当前代码状态的最近一次本地验证结果：
 
-- 后端测试：`80 passed in 4.71s`
-- 前端 TypeScript 检查与 Vite 生产构建：成功
-- Vite 构建提示主 JavaScript 产物超过 500 kB；这是体积优化提示，不影响当前构建完成
+- 后端：`86 passed`
+- 前端：TypeScript检查与Vite生产构建通过
+- Vite提示单个JavaScript产物超过500 kB；该提示不阻止构建
 
-普通单元测试使用依赖替身，不读取真实数据库密码，也不会清理本地数据库。真实运行前仍需正确配置 MySQL、Neo4j 和后端环境变量。
+## AI辅助开发说明
 
-## 安全说明
+项目开发过程中使用AI辅助完成以下工作：
 
-- 不提交 `.env`、密码、JWT Secret、Token、API Key 或数据库备份。
-- 用户密码仅保存 bcrypt 哈希。
-- API 不向客户端返回数据库堆栈或连接凭据。
-- Qwen 仅补充语义解析，不能覆盖受控硬条件或修改商品事实。
-- 模拟支付接口仅用于项目演示，不连接真实支付平台。
+- 需求梳理与功能边界分析
+- 前后端与双数据库架构设计
+- React、FastAPI、SQL和Cypher代码生成
+- 数据契约和角色权限核对
+- Bug定位与联调修复
+- 单元测试、构建和发布前安全检查
+
+AI生成或建议的内容需要经过代码审查、自动化测试和真实环境验证。AI辅助不替代业务规则确认、数据库备份、安全审计或人工验收。
+
+## 注意事项
+
+- 运行项目前必须正确配置MySQL、Neo4j和后端环境变量。
+- 启用Qwen时必须在本地环境变量中配置API Key；未启用时系统使用规则解析。
+- 不要提交 `.env`、数据库密码、Neo4j密码、JWT Secret、Token、API Key、虚拟环境、依赖目录或数据库备份。
+- MySQL负责业务和交易事实，Neo4j负责食品知识关系；两者通过业务编码关联，不依赖Neo4j内部节点ID。
+- 用户密码仅保存bcrypt哈希。
+- 商家和管理员接口均需要正确的JWT角色权限。
+- 当前支付功能为项目内模拟支付，不连接真实支付平台。
+- 食品筛选与成分分析结果仅供信息参考。

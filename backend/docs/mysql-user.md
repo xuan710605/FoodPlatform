@@ -23,7 +23,7 @@ Store the real password only in ignored `backend/.env`:
 
 ```env
 MYSQL_USER=food_platform_app
-MYSQL_PASSWORD=your_local_secret
+MYSQL_PASSWORD=
 MYSQL_DATABASE=food_platform
 ```
 

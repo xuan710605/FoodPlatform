@@ -80,10 +80,13 @@ MySQL 建议每日全量 `mysqldump --single-transaction`，配合 binlog 做时
 
 应用使用最小权限独立账号，禁止以 root 连接；读写、迁移与同步账号分离。密码仅保存强哈希，seed 中 bcrypt 值只用于本地演示。生产环境通过密钥管理器注入凭据，启用 TLS、审计、备份加密及网络白名单。地址、手机号等敏感字段应应用层加密或脱敏，日志不得记录密码或完整个人信息。
 
-## 14. 后端接口建议
+## 14. 后端接口集成
 
-按身份、商品、交易、治理、AI、图谱六个模块组织接口。写接口使用幂等键和资源版本；商品详情接口聚合 MySQL 事实与 Neo4j 已审核关系，并分别标注来源/更新时间。智能筛选接口返回解析条件、证据路径、匹配状态与降级状态；图谱不可用时应返回基础筛选结果而非伪造关系。
+当前FastAPI后端已按认证、商品、交易、智能筛选、知识图谱、商家和管理员模块组织接口。Router负责参数与权限，Service负责业务编排，Repository负责MySQL和Neo4j访问。
 
+商品详情聚合MySQL商品事实、结构化成分和营养数据；知识图谱接口单独读取Neo4j已审核关系。智能筛选接口返回最终生效条件、匹配状态和解释原因。商家接口按 `merchant.owner_user_id` 隔离商品与订单；管理员接口通过 `ADMIN` 角色保护用户状态和商品审核操作。
+
+MySQL写事务不与Neo4j组成分布式事务。图谱不可用时应明确返回未同步或服务异常，不能伪造关系，也不能将缺失关系解释为安全。
 ## 15. MySQL Workbench 导入
 
 连接目标 MySQL 后依次打开并执行 `mysql/schema.sql`、`mysql/drop.sql`、再次执行 `mysql/schema.sql`、`mysql/seed.sql`、`mysql/views.sql`、`mysql/procedures.sql`。使用支持 UTF-8 的连接并确保账户具有创建数据库、表、视图和过程权限。也可直接运行 `init-database.ps1`。
@@ -94,8 +97,8 @@ MySQL 建议每日全量 `mysqldump --single-transaction`，配合 binlog 做时
 
 ## 17. 兼容与验证状态
 
-正确项目路径是 `D:\CodexProjects\FoodPlatform`。当前实际 MySQL 测试环境为 9.7.1：全部初始化文件、36 张基础表、6 个视图、5 个过程、20 件商品及过程的成功/失败最小用例均已执行。Neo4j 兼容目标为 2026.06.0，配置校验已完成；由于本机运行中服务缺少有效认证凭据，图谱清理、导入和 `verify.cypher` 尚未实际执行。
+项目路径为 `D:\CodexProjects\FoodPlatform`。数据库脚本面向MySQL 9.7.1和Neo4j 2026.06.0；当前最终联调环境已完成MySQL初始化验证、Neo4j `verify.cypher`验证以及FastAPI `/api/v1/health/ready`就绪检查。
 
-Neo4j 初始化顺序是 `constraints.cypher` → `clear.cypher` → `seed.cypher` → `verify.cypher`。`verify.cypher` 不使用 Browser `:param`，可由 `cypher-shell --database neo4j -f database/neo4j/verify.cypher` 完整执行，并验证八类节点、总节点、业务编码唯一性、缺失编码和关键解释路径。MySQL 初始化顺序及对象数量验证见 `database/README.md`。
+MySQL初始化预期为36张基础表、6个视图、5个存储过程和20件初始化商品。Neo4j初始化预期为147个项目节点，并验证八类节点、业务编码唯一性、缺失编码和关键风险解释路径。实际对象数量应以初始化脚本和验证脚本输出为准。
 
-执行初始化会清除目标数据库中的本项目演示数据，操作前必须确认目标数据库并完成必要备份。跨库同步和接口不得依赖 Neo4j 内部 ID；只允许使用稳定业务编码。明确含有、可能含有与信息不足必须分别处理，缺少关系不能解释为绝对安全。原始配料文本与标准化配料结果继续分开存储和审计。
+初始化会清除目标数据库中的项目演示数据，执行前必须确认目标并完成必要备份。跨库接口只允许使用稳定业务编码；明确含有、可能含有和信息不足必须分别处理。原始配料文本与结构化成分结果继续分开保存和审计。
