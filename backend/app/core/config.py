@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_access_token_minutes: int = Field(default=60, ge=5, le=1440)
 
+    qwen_enabled: bool = False
+    qwen_api_key: SecretStr | None = None
+    qwen_model: str = "qwen-plus"
+    qwen_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    qwen_timeout_seconds: float = Field(default=8, ge=1, le=60)
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_origins(cls, value: object) -> object:

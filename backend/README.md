@@ -1,6 +1,6 @@
 # FoodPlatform FastAPI backend
 
-Version `0.3.0` provides the backend foundation, read-only product/graph APIs, authentication, user preferences, and basic catalog APIs. It does not implement orders, payment, Qwen, graph writes, deployment, or frontend integration.
+Version `0.3.0` provides the backend foundation, read-only product/graph APIs, authentication, user preferences, and basic catalog APIs. It includes the current commerce APIs and an optional, fail-safe Qwen semantic analyzer for filter text.
 
 ## Architecture
 
@@ -77,7 +77,7 @@ These calls are read-only and never initialize or clear either database.
 
 ## Not implemented in this stage
 
-Cart, orders, payment, merchant/admin write APIs, Qwen calls, smart-filter rule execution, graph mutation, background jobs, Docker deployment, and frontend API replacement remain intentionally out of scope.
+Real payment, merchant/admin write APIs, graph mutation, background jobs, and Docker deployment remain intentionally out of scope.
 
 ## Troubleshooting
 
@@ -121,3 +121,8 @@ See [docs/mysql-user.md](docs/mysql-user.md) for the manual least-privilege `foo
 Authenticated consumers can use `GET /api/v1/cart`, `POST /api/v1/cart/items`, `PUT /api/v1/cart/items/{id}`, and `DELETE /api/v1/cart/items/{id}`. Orders are created from selected cart items with `POST /api/v1/orders`; `GET /api/v1/orders` and `GET /api/v1/orders/{order_id}` return only the current user's orders. Cancellation and mock payment use `POST /api/v1/orders/{order_id}/cancel` and `POST /api/v1/orders/{order_id}/pay`.
 
 Order creation locks inventory rows in stable ID order, revalidates active prices and stock, writes immutable product/specification/price/ingredient-version snapshots, deducts inventory, and removes purchased cart rows in one transaction. A checkout containing multiple merchants must be split into separate orders. Mock payment records a `payment_record`; it never contacts a real payment provider.
+## Optional Qwen filter analysis
+
+`POST /api/v1/filter/analyze` always runs the deterministic controlled analyzer first. When `QWEN_ENABLED=true` and `QWEN_API_KEY` is configured, Qwen may supplement complex semantic conditions through its OpenAI-compatible JSON response. Controlled exclusions and nutrition constraints retain priority. Timeout, upstream, malformed JSON, and schema-validation failures return the controlled result with fallback metadata instead of failing the endpoint.
+
+Configure `QWEN_MODEL`, `QWEN_BASE_URL`, and `QWEN_TIMEOUT_SECONDS` in the ignored `backend/.env`. `QWEN_API_KEY` is a `SecretStr`, is never logged, and must never be committed. `POST /api/v1/filter/search` remains on the existing controlled analysis path in this phase; Qwen does not query databases or judge products.

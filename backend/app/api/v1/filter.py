@@ -8,7 +8,7 @@ from app.schemas.filter import FilterAnalyzeRequest, FilterAnalyzeResult, Filter
 router = APIRouter()
 
 
-@router.post("/analyze", response_model=SuccessResponse[FilterAnalyzeResult], summary="Analyze food filter text", description="Parses supported food constraints with deterministic controlled rules; no Qwen or external model is called.")
+@router.post("/analyze", response_model=SuccessResponse[FilterAnalyzeResult], summary="Analyze food filter text", description="Parses food constraints with controlled rules and optional Qwen semantic enrichment; automatically falls back to controlled rules.")
 def analyze_filter(request: Request, payload: FilterAnalyzeRequest) -> dict:
     data = request.app.state.filter_service.analyze(payload.text)
     return {"success":True,"data":data,"message":"analyzed","request_id":request.state.request_id}

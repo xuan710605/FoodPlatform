@@ -28,7 +28,9 @@ class FilterConditions(BaseModel):
 
 class FilterAnalyzeResult(FilterConditions):
     normalized_text: str
-    parser: Literal["CONTROLLED_RULES"] = "CONTROLLED_RULES"
+    parser: Literal["CONTROLLED_RULES", "QWEN_MERGED", "CONTROLLED_RULES_FALLBACK"] = "CONTROLLED_RULES"
+    qwen_used: bool = False
+    fallback_reason: str | None = None
     unparsed_fragments: list[str] = Field(default_factory=list)
 
 

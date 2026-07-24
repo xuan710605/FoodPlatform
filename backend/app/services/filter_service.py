@@ -9,6 +9,7 @@ from app.repositories.filter_repository import FilterGraphRepository
 from app.repositories.preference_repository import PreferenceRepository
 from app.repositories.product_repository import ProductRepository
 from app.schemas.filter import FilterConditions, FilterSearchRequest
+from app.services.filter_analyzer import FilterAnalyzerOrchestrator
 from app.services.filter_rules import ControlledFilterAnalyzer
 
 
@@ -17,19 +18,21 @@ class FilterService:
         self,
         product_repository: ProductRepository,
         graph_repository: FilterGraphRepository,
-        analyzer: ControlledFilterAnalyzer,
+        analyzer: ControlledFilterAnalyzer | FilterAnalyzerOrchestrator,
         preference_repository: PreferenceRepository | None = None,
+        search_analyzer: ControlledFilterAnalyzer | None = None,
     ):
         self.product_repository = product_repository
         self.graph_repository = graph_repository
         self.analyzer = analyzer
         self.preference_repository = preference_repository
+        self.search_analyzer = search_analyzer or analyzer
 
     def analyze(self, text: str) -> dict[str, Any]:
         return self.analyzer.analyze(text).model_dump()
 
     def search(self, payload: FilterSearchRequest, user_id: int | None = None) -> dict[str, Any]:
-        analyzed = self.analyzer.analyze(payload.text) if payload.text else None
+        analyzed = self.search_analyzer.analyze(payload.text) if payload.text else None
         saved = {"exclude_ingredients": [], "preferred_ingredients": []}
         if user_id is not None and self.preference_repository is not None:
             try:

@@ -3,6 +3,7 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -29,6 +30,7 @@ from app.services.auth_service import AuthService
 from app.services.cart_service import CartService
 from app.services.order_service import OrderService
 from app.services.catalog_service import CatalogService
+from app.services.filter_analyzer import FilterAnalyzerOrchestrator
 from app.services.filter_rules import ControlledFilterAnalyzer
 from app.services.filter_service import FilterService
 from app.services.favorite_service import FavoriteService
@@ -37,6 +39,7 @@ from app.services.preference_service import PreferenceService
 from app.services.review_service import ReviewService
 from app.services.insight_service import InsightService
 from app.services.product_service import ProductService
+from app.services.qwen_filter_analyzer import QwenFilterAnalyzer
 
 settings = get_settings()
 configure_logging(settings.log_level)
@@ -71,15 +74,36 @@ async def lifespan(app: FastAPI):
         product_repository,
         GraphRepository(driver, settings.neo4j_database),
     )
+    controlled_filter_analyzer = ControlledFilterAnalyzer()
+    qwen_http_client: httpx.Client | None = None
+    qwen_filter_analyzer: QwenFilterAnalyzer | None = None
+    qwen_api_key = settings.qwen_api_key.get_secret_value().strip() if settings.qwen_api_key else ""
+    if settings.qwen_enabled and qwen_api_key:
+        qwen_http_client = httpx.Client()
+        qwen_filter_analyzer = QwenFilterAnalyzer(
+            client=qwen_http_client,
+            api_key=qwen_api_key,
+            model=settings.qwen_model,
+            base_url=settings.qwen_base_url,
+            timeout_seconds=settings.qwen_timeout_seconds,
+        )
+    filter_analyzer = FilterAnalyzerOrchestrator(
+        controlled=controlled_filter_analyzer,
+        qwen=qwen_filter_analyzer,
+        enabled=settings.qwen_enabled,
+    )
     app.state.filter_service = FilterService(
         product_repository,
         FilterGraphRepository(driver, settings.neo4j_database),
-        ControlledFilterAnalyzer(),
+        filter_analyzer,
         preference_repository,
+        search_analyzer=controlled_filter_analyzer,
     )
     try:
         yield
     finally:
+        if qwen_http_client is not None:
+            qwen_http_client.close()
         driver.close()
         engine.dispose()
         logger.info("Stopped %s", settings.app_name)
