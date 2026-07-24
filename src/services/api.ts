@@ -50,7 +50,6 @@ export async function apiRequest<T>(path:string,init?:RequestInit):Promise<T>{
   headers.set('Content-Type','application/json')
   if(token)headers.set('Authorization',`Bearer ${token}`)
   console.log('[api] request',{url,hasToken:Boolean(token)})
-  console.log('[api] headers',headers)
   const response=await fetch(url,{...init,headers})
   console.log('[api] response',{url,status:response.status})
   if(response.status===401){localStorage.removeItem(ACCESS_TOKEN_KEY);if(window.location.pathname!=='/login')window.location.assign('/login')}

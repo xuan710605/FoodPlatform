@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import addresses, auth, cart, catalog, favorites, filter, graph, health, orders, preferences, products, reviews, insights, users
+from app.api.v1 import addresses, auth, cart, catalog, favorites, filter, graph, health, orders, preferences, products, reviews, insights, users, workspace
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["Auth"])
@@ -17,3 +17,4 @@ api_router.include_router(reviews.router, tags=["Reviews"])
 api_router.include_router(insights.router, tags=["Insights"])
 api_router.include_router(graph.router, prefix="/products", tags=["Graph"])
 api_router.include_router(filter.router, prefix="/filter", tags=["Filter"])
+api_router.include_router(workspace.router)

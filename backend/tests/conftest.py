@@ -135,9 +135,13 @@ class FakeAuthService:
 
     def authenticate_token(self, token):
         from app.core.exceptions import AppError
-        if token != "good-token":
-            raise AppError("INVALID_TOKEN", "Access token is invalid or expired", 401)
-        return AUTH_USER
+        if token == "good-token":
+            return AUTH_USER
+        if token == "merchant-token":
+            return AUTH_USER | {"id": 8, "user_code": "MER0001", "username": "merchant_zhiwei", "user_type": "MERCHANT", "roles": ["MERCHANT"]}
+        if token == "admin-token":
+            return AUTH_USER | {"id": 11, "user_code": "ADM0001", "username": "gulan_admin", "user_type": "ADMIN", "roles": ["ADMIN"]}
+        raise AppError("INVALID_TOKEN", "Access token is invalid or expired", 401)
 
 
 class FakePreferenceService:
@@ -253,6 +257,29 @@ class FakeFavoriteService:
         from app.core.exceptions import AppError
         if not self.by_user.get(user_id,{}).pop(product_code,None): raise AppError("FAVORITE_NOT_FOUND","Favorite not found",404)
 
+class FakeWorkspaceService:
+    def merchant_dashboard(self, user_id):
+        return {"merchant_code":"MCH0001","merchant_name":"知味优选旗舰店","product_count":4,"on_sale_count":4,"pending_review_count":0,"order_count":4,"paid_order_count":3,"sales_amount":Decimal("232.30")}
+    def merchant_products(self, user_id):
+        return [{"product_code":"FP0001","name":"原味燕麦片","subtitle":"配料简单","description":"早餐麦片","raw_ingredient_text":"燕麦","allergen_notice":None,"brand":"谷本日记","brand_code":"BR001","category":"早餐麦片","category_code":"CAT001","spec_name":"500g","unit_name":"袋","image_url":None,"sale_status":"ON_SALE","review_status":"APPROVED","sale_price":Decimal("32.90"),"stock_quantity":88,"updated_at":datetime(2026,7,23,tzinfo=timezone.utc)}]
+    def create_product(self, user_id, payload): return {"product_code":"FP0099"}
+    def update_product(self, user_id, code, payload): return {"product_code":code}
+    def update_sale_status(self, user_id, code, status): return {"product_code":code,"sale_status":status}
+    def merchant_orders(self, user_id):
+        return [{"id":1,"order_no":"ZW1","buyer":"demo001","status":"PAID","payable_amount":Decimal("32.90"),"paid_amount":Decimal("32.90"),"item_count":1,"placed_at":datetime(2026,7,23,tzinfo=timezone.utc),"paid_at":datetime(2026,7,23,tzinfo=timezone.utc),"shipped_at":None,"completed_at":None},{"id":2,"order_no":"ZW2","buyer":"demo002","status":"REFUND_REQUESTED","payable_amount":Decimal("18.00"),"paid_amount":Decimal("18.00"),"item_count":1,"placed_at":datetime(2026,7,22,tzinfo=timezone.utc),"paid_at":datetime(2026,7,22,tzinfo=timezone.utc),"shipped_at":None,"completed_at":None}]
+    def update_order_status(self, user_id, order_id, status): return {"id":order_id,"status":status}
+    def admin_dashboard(self): return {"user_count":13,"merchant_count":3,"product_count":20,"pending_product_count":1,"order_count":8}
+    def admin_users(self, keyword=None):
+        items = [{"id":1,"user_code":"USR0001","username":"demo001","email":"demo@example.test","user_type":"CONSUMER","status":"ACTIVE","roles":["CONSUMER"],"created_at":datetime(2026,7,23,tzinfo=timezone.utc)},{"id":8,"user_code":"MER0001","username":"merchant_zhiwei","email":"zhiwei@example.test","user_type":"MERCHANT","status":"ACTIVE","roles":["MERCHANT"],"created_at":datetime(2026,7,22,tzinfo=timezone.utc)}]
+        if keyword:
+            term=keyword.lower();items=[item for item in items if term in item["username"].lower() or term in (item["email"] or "").lower()]
+        return items
+    def update_admin_user_status(self, user_id, status): return {"id":user_id,"status":status}
+    def admin_products(self, status):
+        return [{"product_code":"FP0099","name":"待审核商品","merchant_code":"MCH0001","merchant_name":"知味优选旗舰店","brand":"谷本日记","category":"早餐麦片","review_status":"PENDING","sale_status":"DRAFT","submitted_at":datetime(2026,7,23,tzinfo=timezone.utc),"updated_at":datetime(2026,7,23,tzinfo=timezone.utc)}]
+    def approve_product(self, user_id, code, opinion): return {"product_code":code,"review_status":"APPROVED"}
+
+
 class FakeGraphService:
     def get_product_graph(self, _code):
         return GRAPH
@@ -275,4 +302,5 @@ def client():
         app.state.review_service = FakeReviewService()
         app.state.insight_service = FakeInsightService()
         app.state.favorite_service = FakeFavoriteService()
+        app.state.workspace_service = FakeWorkspaceService()
         yield test_client

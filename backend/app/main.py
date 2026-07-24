@@ -25,6 +25,7 @@ from app.repositories.review_repository import ReviewRepository
 from app.repositories.insight_repository import InsightRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.product_repository import ProductRepository
+from app.repositories.workspace_repository import WorkspaceRepository
 from app.services.address_service import AddressService
 from app.services.auth_service import AuthService
 from app.services.cart_service import CartService
@@ -40,6 +41,7 @@ from app.services.review_service import ReviewService
 from app.services.insight_service import InsightService
 from app.services.product_service import ProductService
 from app.services.qwen_filter_analyzer import QwenFilterAnalyzer
+from app.services.workspace_service import WorkspaceService
 
 settings = get_settings()
 configure_logging(settings.log_level)
@@ -69,6 +71,7 @@ async def lifespan(app: FastAPI):
     app.state.order_service = OrderService(commerce_repository, address_repository)
     app.state.favorite_service = FavoriteService(FavoriteRepository(session_factory))
     app.state.review_service = ReviewService(ReviewRepository(session_factory))
+    app.state.workspace_service = WorkspaceService(WorkspaceRepository(session_factory))
     app.state.insight_service = InsightService(InsightRepository(session_factory))
     app.state.graph_service = GraphService(
         product_repository,
