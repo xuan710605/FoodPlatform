@@ -1,10 +1,11 @@
 import re
 from decimal import Decimal
 
+from app.core.filter_categories import CATEGORY_CODE_ALIASES, VALID_CATEGORY_CODES
 from app.schemas.filter import FilterAnalyzeResult, NutritionTarget
 
 
-NEGATION_MARKERS = ("不含", "不要", "避免", "排除", "去掉", "避开", "不能含")
+NEGATION_MARKERS = ("不想吃", "不想要", "不含", "不要", "避免", "排除", "去掉", "避开", "不能含")
 INGREDIENT_SYNONYMS = {
     "花生酱": "花生",
     "花生粉": "花生",
@@ -23,26 +24,8 @@ INGREDIENT_SYNONYMS = {
     "核桃": "核桃",
     "腰果": "腰果",
 }
-CATEGORY_SYNONYMS = {
-    "早餐麦片": "CAT001",
-    "早餐": "CAT001",
-    "饼干": "CAT002",
-    "奶制品": "CAT003",
-    "乳品": "CAT003",
-    "鲜奶": "CAT003",
-    "酸奶": "CAT003",
-    "牛奶": "CAT003",
-    "坚果": "CAT004",
-    "果汁饮料": "CAT005",
-    "果汁": "CAT005",
-    "面包": "CAT006",
-    "巧克力": "CAT007",
-    "速食": "CAT008",
-    "谷物棒": "CAT009",
-    "植物蛋白": "CAT010",
-    "植物奶": "CAT010",
-}
-EXCLUDABLE_CATEGORY_CODES = {"CAT005"}
+CATEGORY_SYNONYMS = CATEGORY_CODE_ALIASES
+EXCLUDABLE_CATEGORY_CODES = VALID_CATEGORY_CODES
 
 def _negated_matches(text: str) -> tuple[list[str], list[str], str]:
     ingredients: list[str] = []
@@ -55,10 +38,10 @@ def _negated_matches(text: str) -> tuple[list[str], list[str], str]:
             if not re.search(pattern, positive_text):
                 continue
             category_code = CATEGORY_SYNONYMS.get(alias)
-            if category_code in EXCLUDABLE_CATEGORY_CODES:
-                categories.append(category_code)
-            elif alias in INGREDIENT_SYNONYMS:
+            if alias in INGREDIENT_SYNONYMS and category_code != "CAT005":
                 ingredients.append(INGREDIENT_SYNONYMS[alias])
+            elif category_code in EXCLUDABLE_CATEGORY_CODES:
+                categories.append(category_code)
             positive_text = re.sub(pattern, " ", positive_text)
     return list(dict.fromkeys(ingredients)), list(dict.fromkeys(categories)), positive_text
 

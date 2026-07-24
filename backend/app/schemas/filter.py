@@ -1,7 +1,9 @@
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from app.core.filter_categories import normalize_category_code, normalize_category_codes
 
 
 class NutritionTarget(BaseModel):
@@ -24,6 +26,22 @@ class FilterConditions(BaseModel):
     nutrition_targets: list[NutritionTarget] = Field(default_factory=list, max_length=10)
     max_price: Decimal | None = Field(default=None, ge=0)
     category_code: str | None = Field(default=None, max_length=32)
+
+    @field_validator("exclude_categories", mode="before")
+    @classmethod
+    def normalize_excluded_categories(cls, value: object) -> object:
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            return value
+        return normalize_category_codes(value)
+
+    @field_validator("category_code", mode="before")
+    @classmethod
+    def normalize_selected_category(cls, value: object) -> object:
+        if value is None or not isinstance(value, str):
+            return value
+        return normalize_category_code(value)
 
 
 class FilterAnalyzeResult(FilterConditions):

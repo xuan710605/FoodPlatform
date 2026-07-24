@@ -53,7 +53,7 @@ class QwenFilterAnalyzer:
     @staticmethod
     def _system_prompt() -> str:
         return """你是食品筛选条件解析器。只输出 JSON 对象，不要 Markdown 或解释。字段必须且只能是：
-exclude_ingredients（字符串数组）、exclude_categories（字符串数组）、preferred_ingredients（字符串数组）、
+exclude_ingredients（字符串数组）、exclude_categories（字符串数组，元素只能是 CAT001 至 CAT010，禁止分类名称）、preferred_ingredients（字符串数组）、
 nutrition_targets（数组，每项包含 nutrient_code、nutrient_name、operator、value、unit、basis）、
 max_price（数字或 null）、category_code（字符串或 null）。
 category_code 仅允许 CAT001 至 CAT010；operator 仅允许 LTE 或 GTE；

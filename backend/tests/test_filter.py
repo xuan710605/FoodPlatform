@@ -11,6 +11,7 @@ class ProductRepositoryStub:
         {"product_code":"FP0002","name":"交叉接触麦片","brand":"示例品牌","category":"早餐麦片","category_code":"CAT001","main_image_url":None,"sale_price":Decimal("30")},
         {"product_code":"FP0017","name":"花生酱饼干","brand":"示例品牌","category":"早餐麦片","category_code":"CAT001","main_image_url":None,"sale_price":Decimal("30")},
         {"product_code":"FP0004","name":"有机全脂鲜牛奶","brand":"牧场清晨","category":"乳品酸奶","category_code":"CAT003","main_image_url":None,"sale_price":Decimal("59.9")},
+        {"product_code":"FP0008","name":"全麦核桃软欧包","brand":"麦香工房","category":"面包烘焙","category_code":"CAT006","main_image_url":None,"sale_price":Decimal("22.8")},
     ]
 
     def list_products(self, filters):
@@ -172,3 +173,25 @@ def test_dynamic_sugar_limit_marks_high_sugar_product_not_match():
 def test_empty_nutrition_conditions_do_not_apply_fixed_thresholds():
     analyzed = ControlledFilterAnalyzer().analyze("低糖商品")
     assert analyzed.nutrition_targets == []
+
+def test_not_want_bread_is_normalized_to_excluded_category():
+    result = ControlledFilterAnalyzer().analyze("我不想吃面包")
+    assert result.exclude_categories == ["CAT006"]
+    assert result.category_code is None
+
+
+def test_bread_category_is_removed_from_search_results():
+    result = filter_service().search(FilterSearchRequest(exclude_categories=["CAT006"]))
+    assert "FP0008" not in {item["product_code"] for item in result["items"]}
+
+
+def test_frontend_category_name_is_normalized_before_search():
+    request = FilterSearchRequest(exclude_categories=["面包烘焙"])
+    assert request.exclude_categories == ["CAT006"]
+    result = filter_service().search(request)
+    assert "FP0008" not in {item["product_code"] for item in result["items"]}
+
+def test_ingredient_alias_keeps_ingredient_exclusion_precedence():
+    result = ControlledFilterAnalyzer().analyze("不含牛奶")
+    assert result.exclude_ingredients == ["牛奶"]
+    assert result.exclude_categories == []

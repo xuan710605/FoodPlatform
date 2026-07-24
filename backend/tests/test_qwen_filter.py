@@ -119,3 +119,11 @@ def test_missing_qwen_key_uses_controlled_fallback_without_network():
     assert result.parser == "CONTROLLED_RULES_FALLBACK"
     assert result.fallback_reason == "QWEN_NOT_CONFIGURED"
     assert "花生" in result.exclude_ingredients
+
+def test_qwen_category_name_is_normalized_to_business_code():
+    client = FakeClient(FakeResponse(qwen_payload(exclude_categories=["面包烘焙"], category_code=None)))
+
+    result = build_orchestrator(client).analyze("我不想吃面包")
+
+    assert result.parser == "QWEN_MERGED"
+    assert result.exclude_categories == ["CAT006"]
