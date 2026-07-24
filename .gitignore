@@ -1,13 +1,41 @@
-node_modules
-dist
-.DS_Store
-*.local
-*.log
+# Node and frontend build artifacts
+node_modules/
+dist/
 *.tsbuildinfo
 vite.config.js
 vite.config.d.ts
-backend/.env
-backend/.venv/
-backend/**/__pycache__/
-backend/.pytest_cache/
-backend/**/*.pyc
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+!**/.env.example
+*.local
+*.key
+*.pem
+*.secret
+
+# Python environments and caches
+.venv/
+**/.venv/
+__pycache__/
+**/__pycache__/
+.pytest_cache/
+**/.pytest_cache/
+*.py[cod]
+
+# Logs and local runtime files
+*.log
+*.pid
+.DS_Store
+Thumbs.db
+
+# Database dumps and backups
+*.sql.gz
+*.dump
+*.bak
+*.backup
+
+# Private project documents
+工作计划.xlsx
+需求文档.docx
