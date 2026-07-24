@@ -198,6 +198,16 @@ class FakeFilterService:
         }
 
 
+
+class FakeReviewService:
+    item={"id":1,"review_code":"REV001","order_item_id":51,"product_code":"FP0001","product_name":"原味燕麦片","username":"demo001","rating":5,"review_text":"配料清晰","reviewed_at":datetime(2026,7,23,tzinfo=timezone.utc)}
+    def list_product(self,_code,page,size):return {"total":1,"page":page,"page_size":size,"items":[self.item]}
+    def list_user(self,_user,page,size):return {"total":1,"page":page,"page_size":size,"items":[self.item]}
+    def create(self,_user,payload):return self.item|{"order_item_id":payload["order_item_id"],"rating":payload["rating"],"review_text":payload.get("review_text")}
+
+class FakeInsightService:
+    def recommendations(self,_user):return [{"product_code":"FP0001","name":"原味燕麦片","brand":"谷物日记","image_url":None,"sale_price":Decimal("32.90"),"score":Decimal("10"),"reasons":["匹配偏好成分：燕麦"]}]
+    def notifications(self,_user):return [{"id":"ORDER-31","type":"ORDER","title":"订单待支付","message":"订单状态更新","created_at":datetime(2026,7,23,tzinfo=timezone.utc),"target_path":"/account?tab=orders"}]
 class FakeCartService:
     item = {"id": 7, "product_code": "FP0001", "product_name": "原味燕麦片", "spec_code": "SPEC001", "spec_name": "500g", "image_url": None, "quantity": 1, "unit_price": Decimal("32.90"), "subtotal": Decimal("32.90"), "stock_quantity": 88, "sellable": True, "selected": True}
     def get(self, _user_id): return {"cart_code":"CARTTEST","items":[self.item],"item_count":1,"total_quantity":1,"total_amount":Decimal("32.90")}
@@ -262,5 +272,7 @@ def client():
         app.state.cart_service = FakeCartService()
         app.state.address_service = FakeAddressService()
         app.state.order_service = FakeOrderService()
+        app.state.review_service = FakeReviewService()
+        app.state.insight_service = FakeInsightService()
         app.state.favorite_service = FakeFavoriteService()
         yield test_client

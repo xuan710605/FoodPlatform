@@ -6,6 +6,7 @@ import { SafeImage } from '../../components/common/SafeImage'
 import { useApp } from '../../store/AppStore'
 import { getProductDetail, resolveProductCode, type ApiProductDetail, type ApiProductIngredient } from '../../services/api'
 import type { MatchStatus } from '../../types'
+import { listProductReviews, type ApiReview } from '../../services/consumer'
 
 const statusMap: Record<string, MatchStatus> = {
   FULL_MATCH: '完全匹配',
@@ -30,6 +31,7 @@ export function ProductDetailPage() {
   const [tab, setTab] = useState('ingredients')
   const [ingredient, setIngredient] = useState<ApiProductIngredient | null>(null)
   const [main, setMain] = useState('')
+  const [reviews, setReviews] = useState<ApiReview[]>([])
   const { addCart, toggleFavorite, toggleCompare, trackProductView, favorites, loggedIn, currentUser } = useApp()
 
   useEffect(() => {
@@ -50,6 +52,8 @@ export function ProductDetailPage() {
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [code, reloadKey])
+
+  useEffect(() => { let active=true; listProductReviews(code).then(data=>{if(active)setReviews(data.items)}).catch(()=>{if(active)setReviews([])}); return()=>{active=false} }, [code, reloadKey])
 
   useEffect(() => {
     if (!currentUser || !product) return
@@ -101,7 +105,7 @@ export function ProductDetailPage() {
       {tab === 'ingredients' && <><section className="detail-section card"><h3>商品匹配摘要</h3><InlineNotice tone={matchStatus === '完全匹配' ? 'success' : matchStatus === '不匹配' ? 'danger' : 'warning'} title={matchStatus}>{product.match_reason || '暂无匹配说明'}</InlineNotice></section><section className="detail-section card"><h3>原始配料表</h3><p className="raw-label">{product.raw_ingredient_text || '暂无数据'}</p>{product.allergen_notice && <p className="muted">过敏原提示：{product.allergen_notice}</p>}<div className="ingredient-zones"><IngredientZone title="主要配料" items={ingredients} onSelect={setIngredient}/><IngredientZone title="食品添加剂" items={additives} onSelect={setIngredient}/><IngredientZone title="可能含有" items={product.may_contain} onSelect={setIngredient}/><IngredientZone title="未识别成分" items={product.unknown} onSelect={setIngredient}/></div></section></>}
       {tab === 'nutrition' && <section className="detail-section card"><h3>营养成分表</h3>{product.nutrition.length === 0 ? <p className="muted">暂无数据</p> : <table className="nutrition-table"><thead><tr><th>营养项目</th><th>数值</th><th>计量基准</th></tr></thead><tbody>{product.nutrition.map(item => <tr key={`${item.nutrient_code}-${item.basis}`}><td>{item.nutrient_name}</td><td>{valueOrEmpty(item.value, item.unit)}</td><td>{basisLabels[item.basis] || item.basis}{item.basis_quantity ? `（${item.basis_quantity}${item.unit}）` : ''}</td></tr>)}</tbody></table>}</section>}
       {tab === 'source' && <section className="detail-section card"><h3>信息来源与审核状态</h3><div className="form-grid"><div><span className="muted">来源</span><p>{product.info_source || '暂无数据'}</p></div><div><span className="muted">审核状态</span><p><span className="status-pill success">{auditLabels[product.audit_status] || product.audit_status}</span></p></div><div><span className="muted">最近更新时间</span><p>{new Date(product.updated_at).toLocaleString('zh-CN')}</p></div><div><span className="muted">成分版本</span><p>{product.ingredient_version === null ? '暂无数据' : `v${product.ingredient_version}`}</p></div></div><Link className="btn primary" to={`/graph/${product.product_code}`}><GitFork/>查看完整图谱追溯</Link></section>}
-      {tab === 'reviews' && <section className="detail-section card"><h3>用户评价 · {product.review_count}</h3><p>平均评分：{product.average_rating === null ? '暂无数据' : `${product.average_rating} / 5`}</p><p className="muted">当前接口仅提供数据库评价统计，评价明细暂未开放。</p></section>}
+      {tab === 'reviews' && <section className="detail-section card"><h3>用户评价 · {product.review_count}</h3><p>平均评分：{product.average_rating === null ? '暂无数据' : `${product.average_rating} / 5`}</p>{reviews.length?reviews.map(review=><article className="order-head" style={{padding:'14px 0'}} key={review.review_code}><div><b>{review.username} · {'★'.repeat(review.rating)}</b><p>{review.review_text||'用户未填写文字评价'}</p><small className="muted">{new Date(review.reviewed_at).toLocaleString('zh-CN')}</small></div></article>):<p className="muted">暂无已发布评价</p>}</section>}
     </div>
     <Modal open={!!ingredient} title={`${ingredient?.name || ''} · 成分信息`} onClose={() => setIngredient(null)} footer={<><button className="btn ghost" onClick={() => setIngredient(null)}>关闭</button><Link className="btn primary" to={`/graph/${product.product_code}`}>在图谱中查看 <ChevronRight size={15}/></Link></>}><div className="node-detail"><small>标准名称</small><h3>{ingredient?.name}</h3><p>业务编码：{ingredient?.entity_code || '暂无数据'}</p><div className="tag-row"><span>{ingredient?.audit_status || '暂无审核状态'}</span><span>来源：{ingredient?.source_code || '暂无数据'}</span><span>置信度：{ingredient?.confidence ?? '暂无数据'}</span></div></div></Modal>
   </div></div>

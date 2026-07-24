@@ -1,0 +1,12 @@
+from sqlalchemy import text
+from sqlalchemy.orm import Session,sessionmaker
+class InsightRepository:
+    def __init__(self,factory:sessionmaker[Session]):self._factory=factory
+    def recommendations(self,user_id):
+        with self._factory() as s:
+            prefs=s.execute(text("SELECT ingredient_name,preference_type FROM user_ingredient_preference WHERE user_id=:u AND is_enabled=1"),{"u":user_id}).mappings().all()
+            rows=s.execute(text("""SELECT p.id,p.product_code,p.product_name name,b.brand_name brand,(SELECT image_url FROM product_image WHERE product_id=p.id AND image_type='MAIN' AND status='ACTIVE' ORDER BY sort_order,id LIMIT 1) image_url,(SELECT pp.amount FROM product_spec ps JOIN product_price pp ON pp.spec_id=ps.id AND pp.price_type='SALE' AND pp.status='ACTIVE' WHERE ps.product_id=p.id AND ps.is_default=1 ORDER BY pp.valid_from DESC LIMIT 1) sale_price,(SELECT nutrient_value FROM product_nutrition pn WHERE pn.product_id=p.id AND pn.nutrient_code='NUT_PROTEIN' AND pn.audit_status='APPROVED' LIMIT 1) protein_value,GROUP_CONCAT(DISTINCT pis.normalized_name) ingredients,(SELECT COUNT(*) FROM favorite f WHERE f.user_id=:u AND f.product_id=p.id) favorite_count,(SELECT COALESCE(view_count,0) FROM browsing_history bh WHERE bh.user_id=:u AND bh.product_id=p.id AND bh.is_deleted=0) view_count,(SELECT COALESCE(SUM(oi.quantity),0) FROM order_item oi JOIN order_info o ON o.id=oi.order_id WHERE o.user_id=:u AND oi.product_id=p.id AND o.order_status NOT IN ('CANCELLED','PENDING_PAYMENT')) purchase_count FROM product p JOIN brand b ON b.id=p.brand_id LEFT JOIN product_ingredient_snapshot pis ON pis.product_id=p.id AND pis.effective_to IS NULL AND pis.audit_status='APPROVED' WHERE p.is_deleted=0 AND p.review_status='APPROVED' AND p.sale_status='ON_SALE' GROUP BY p.id,b.brand_name ORDER BY p.created_at DESC LIMIT 100"""),{"u":user_id}).mappings().all()
+            return [dict(x) for x in prefs],[dict(x) for x in rows]
+    def notifications(self,user_id):
+        with self._factory() as s:
+            return [dict(x) for x in s.execute(text("""SELECT CONCAT('ORDER-',id) id,'ORDER' type,CASE order_status WHEN 'PENDING_PAYMENT' THEN '订单待支付' WHEN 'SHIPPED' THEN '订单配送中' WHEN 'COMPLETED' THEN '订单已完成' ELSE '订单状态更新' END title,CONCAT('订单 ',order_no,' 当前状态：',order_status) message,updated_at created_at,CONCAT('/account?tab=orders') target_path FROM order_info WHERE user_id=:u ORDER BY updated_at DESC LIMIT 30"""),{"u":user_id}).mappings()]

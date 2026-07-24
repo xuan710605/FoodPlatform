@@ -33,7 +33,7 @@ class ProductRepository:
         for field,column in (("category_code","c.category_code"),("category","c.category_name"),("brand_code","b.brand_code"),("brand","b.brand_name"),("merchant_id","p.merchant_id")):
             if filters.get(field) is not None: where.append(f"{column}=:{field}");params[field]=filters[field]
         if filters.get("keyword"):
-            where.append("(p.product_name LIKE :keyword OR p.product_code LIKE :keyword)");params["keyword"]=f"%{filters['keyword']}%"
+            where.append("""(p.product_name LIKE :keyword OR p.product_code LIKE :keyword OR b.brand_name LIKE :keyword OR c.category_name LIKE :keyword OR p.subtitle LIKE :keyword OR p.description LIKE :keyword OR p.allergen_notice LIKE :keyword OR EXISTS (SELECT 1 FROM product_ingredient_snapshot pkw WHERE pkw.product_id=p.id AND pkw.effective_to IS NULL AND pkw.audit_status='APPROVED' AND pkw.normalized_name LIKE :keyword))""");params["keyword"]=f"%{filters['keyword']}%"
         sale_price = "(SELECT pp.amount FROM product_price pp WHERE pp.spec_id=s.id AND pp.price_type='SALE' AND pp.status='ACTIVE' AND pp.valid_from<=CURRENT_TIMESTAMP(3) AND (pp.valid_to IS NULL OR pp.valid_to>CURRENT_TIMESTAMP(3)) ORDER BY pp.valid_from DESC,pp.id DESC LIMIT 1)"
         for key,operator in (("price_min",">="),("price_max","<=")):
             if filters.get(key) is not None:where.append(f"{sale_price} {operator} :{key}");params[key]=filters[key]

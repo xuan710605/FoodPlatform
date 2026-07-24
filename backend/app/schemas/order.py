@@ -28,6 +28,8 @@ class OrderItem(BaseModel):
     quantity: int
     subtotal: Decimal
     ingredient_version: int | None
+    reviewed: bool = False
+    can_review: bool = False
 
 
 class OrderSummary(BaseModel):
@@ -49,6 +51,7 @@ class OrderSummary(BaseModel):
     buyer_remark: str | None = None
     items: list[OrderItem]
     allowed_actions: list[Literal["PAY", "CANCEL", "CONFIRM_RECEIPT"]] = []
+    review_status: Literal["UNAVAILABLE", "PENDING", "PARTIAL", "COMPLETED"] = "UNAVAILABLE"
 
 
 class OrderPage(BaseModel):
